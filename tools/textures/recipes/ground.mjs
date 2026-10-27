@@ -51,7 +51,7 @@ function paint({ id, color, wear, tyre, note }) {
         return 0.5 + (broad.data[i] - 0.5) * 1.1 + (mid.data[i] - 0.5) * 0.8 + (fine.data[i] - 0.5) * 0.5 + (bands.data[i] - 0.5) * tyre;
       });
       // Wide transition: thinning paint fades to the asphalt instead of a hard edge.
-      const thr = 0.82 - wear;
+      const thr = 0.72 - wear;
       let cover = map(wearField, (v) => 1 - sstep(thr, thr + 0.22, v));
 
       // Chips: a handful of small ragged holes where a stone or tyre lifted the paint.
@@ -59,13 +59,13 @@ function paint({ id, color, wear, tyre, note }) {
       const cells = worley(w, h, cx, cy, ctx.sub(7), 1);
       const chip = Field.from(w, h, (x, y) => {
         const i = y * w + x;
-        if (cells.id.data[i] < 0.9) return 0;
+        if (cells.id.data[i] < 0.8) return 0;
         return sstep(0.0, 0.05, 0.17 + (fine.data[i] - 0.5) * 0.35 - cells.f1.data[i]);
       });
       cover = Field.from(w, h, (x, y) => Math.min(cover.data[y * w + x], 1 - chip.data[y * w + x]));
 
       // Asphalt showing through.
-      const asphalt = tinted(add(0.16, add(mul(g, 0.35), mul(map(broad, (v) => v - 0.5), 0.05))), [0.0, 0.004, 0.012]);
+      const asphalt = tinted(add(0.125, add(mul(g, 0.35), mul(map(broad, (v) => v - 0.5), 0.05))), [0.0, 0.004, 0.012]);
 
       // Paint: tone drift, grime, tyre rubber smears.
       const dirt = smoothstep(grime, 0.45, 0.8);

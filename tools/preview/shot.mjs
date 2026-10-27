@@ -2,11 +2,12 @@
 // Headless screenshots of the game and the material gallery with the preinstalled Playwright Chromium
 // (software GL, so slow but deterministic enough to eyeball).
 //
-// Usage: node tools/preview/shot.mjs [--page materials|normal|bind|game] [--out shots] [--ids a,b] [--full]
+// Usage: node tools/preview/shot.mjs [--page materials|normal|bind|game|street] [--out shots] [--ids a,b] [--full]
 //        [--tier high|medium|low] [--base /textures] [--cam <page specific>] [--size 1600x900] [--url http://host:port] [--strict]
 //   materials  /materials.html gallery       normal  /materials.html?test=normal (normal-map self-test)
 //   bind       /materials.html?test=bind (MaterialLibrary binding + chunk unload checks)
 //   game       /  (use --cam x,y,z,yaw,pitch)
+//   street     /street.html night street vignette: --shot down|road|facade|sign|aerial|billboard, --q "tm=aces&neon=2&ssr=0" extra query, --tag name
 // Exit code is 1 on uncaught page errors, a failed self-test, or (with --strict) console errors.
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -41,6 +42,12 @@ if (page === "materials" || page === "normal" || page === "bind") {
   if (flag("full")) query.set("full", "1");
   if (opt("tier")) query.set("tier", opt("tier"));
   if (opt("cam")) query.set("cam", opt("cam"));
+} else if (page === "street") {
+  path = "/street.html";
+  if (opt("shot")) query.set("shot", opt("shot"));
+  if (opt("tier")) query.set("tier", opt("tier"));
+  if (opt("cam")) query.set("cam", opt("cam"));
+  for (const [k, v] of new URLSearchParams(opt("q", ""))) query.set(k, v);
 } else if (page === "game") {
   if (opt("cam")) query.set("cam", opt("cam"));
 } else {
@@ -119,7 +126,7 @@ try {
   if ((info?.normalTest && !info.normalTest.ok) || (info?.bindTest && !info.bindTest.ok)) failed = true;
 
   mkdirSync(outDir, { recursive: true });
-  const name = [page, opt("ids")?.split(",").slice(0, 3).join("+"), flag("full") ? "full" : null, opt("tier")].filter(Boolean).join("-");
+  const name = [page, opt("ids")?.split(",").slice(0, 3).join("+"), opt("shot"), opt("tag"), flag("full") ? "full" : null, opt("tier")].filter(Boolean).join("-");
   const file = join(outDir, `${name}.png`);
   await tab.screenshot({ path: file });
   console.log(`saved ${file}`);

@@ -15,6 +15,7 @@
     "shots": "node tools/preview/shot.mjs",
     "test": "node --test tools/textures/test/*.test.mjs",
     "textures:check": "node tools/textures/check.mjs",
+    "docs:materials": "node tools/textures/docs.mjs",
     "gen": "node tools/gen/index.mjs all",
     "gen:models": "node tools/gen/index.mjs models",
     "gen:chunks": "node tools/gen/index.mjs chunks"

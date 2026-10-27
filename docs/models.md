@@ -70,9 +70,9 @@ to `wall`/`box`/`prism` so floor lines land on 4.8 + 3.6k.
   **must** keep vertex colours enabled on these (the library does).
 - `mat_atlas_decal` is alpha-blended (road arrows, manholes, stains, drain grates) and sits 4.5 cm above the
   road; it needs `zOffset` / depth bias at runtime to avoid z-fighting at distance.
-- Materials a recipe uses that the texture set has no entry for yet (`mat_prop_paint_*`, `mat_prop_wood`,
-  `mat_prop_bag`, `mat_prop_screen_blue`, `mat_fabric_awning`, `mat_metal_container`) keep the GLB fallback
-  factors; the library logs one warning per id.
+- Every material id in `tools/gen/lib/materials.mjs` has an entry in the texture manifest (53 in total). A new id needs a
+  matching texture recipe (`tools/textures`, `required-ids.json`); until then the GLB fallback factors are used and
+  the library logs one warning per id.
 
 ## Vertex data
 

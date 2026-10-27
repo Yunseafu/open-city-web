@@ -1,10 +1,12 @@
 // Materials without textures: pure parameters. Colours are LINEAR RGB.
 // Neon is emissive-only: a near-black base plus HDR emission that the bloom pass picks up.
+// Emission 4 keeps the tubes saturated under PBR-Neutral (street preview: at 10 the cores wash out to pale pink, below 3 the glow is gone).
+// Warm lamp / tail light stay below ~2 / 3 for the same reason: the amber and red channels clip to white earlier than the neon colours.
 
 const neon = (name, emissiveColor, note) => ({
   id: `mat_neon_${name}`,
   note,
-  params: { baseColor: [0.02, 0.02, 0.025], metallic: 0, roughness: 0.35, emissiveColor, emissiveIntensity: 5 },
+  params: { baseColor: [0.02, 0.02, 0.025], metallic: 0, roughness: 0.35, emissiveColor, emissiveIntensity: 4 },
 });
 
 export const flat = [
@@ -33,13 +35,23 @@ export const flat = [
   },
   {
     id: "mat_veh_light_tail",
-    params: { baseColor: [0.1, 0.01, 0.01], metallic: 0, roughness: 0.15, emissiveColor: [1.0, 0.02, 0.03], emissiveIntensity: 4 },
+    params: { baseColor: [0.1, 0.01, 0.01], metallic: 0, roughness: 0.15, emissiveColor: [1.0, 0.02, 0.03], emissiveIntensity: 3 },
   },
   {
     id: "mat_light_warm",
     note: "windows, lamps, street light heads",
-    params: { baseColor: [0.06, 0.05, 0.03], metallic: 0, roughness: 0.4, emissiveColor: [1.0, 0.69, 0.35], emissiveIntensity: 3 },
+    params: { baseColor: [0.06, 0.05, 0.03], metallic: 0, roughness: 0.4, emissiveColor: [1.0, 0.69, 0.35], emissiveIntensity: 2 },
   },
   { id: "mat_foliage_leaf", params: { baseColor: [0.014, 0.068, 0.023], metallic: 0, roughness: 0.8, doubleSided: true } },
+  { id: "mat_prop_paint_red", note: "painted props: hydrants, barriers", params: { baseColor: [0.254, 0.012, 0.014], metallic: 0.3, roughness: 0.5 } },
+  { id: "mat_prop_paint_yellow", params: { baseColor: [0.462, 0.254, 0.006], metallic: 0.3, roughness: 0.55 } },
+  { id: "mat_prop_paint_orange", params: { baseColor: [0.552, 0.089, 0.005], metallic: 0, roughness: 0.6 } },
+  { id: "mat_prop_paint_green", params: { baseColor: [0.012, 0.068, 0.042], metallic: 0.3, roughness: 0.55 } },
+  { id: "mat_prop_bag", note: "glossy black rubbish bags", params: { baseColor: [0.004, 0.004, 0.006], metallic: 0, roughness: 0.35 } },
+  {
+    id: "mat_prop_screen_blue",
+    note: "idle terminal / monitor glow",
+    params: { baseColor: [0.002, 0.007, 0.011], metallic: 0, roughness: 0.2, emissiveColor: [0.023, 0.456, 1.0], emissiveIntensity: 2.5 },
+  },
   { id: "mat_char_skin", note: "no SSS in v1", params: { baseColor: [0.58, 0.3, 0.2], metallic: 0, roughness: 0.55 } },
 ];
