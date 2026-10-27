@@ -4,6 +4,7 @@
 //     &cat=prop|building|..    only that category        &id=a,b   only those ids
 //   ?view=chunk&chunk=0_0    one generated chunk from public/chunks
 //   &light=night|day  &wire=1  &uvtest=1 (checker with an "F" at every tile size, to check UV orientation)
+//   &anim=walk   play that animation clip on every model that has it (default: none, bind pose)
 //   &cam=alpha,beta,radius[,tx,ty,tz]   camera override (degrees / metres)
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
@@ -135,6 +136,11 @@ async function loadGallery(): Promise<{ min: Vector3; max: Vector3 }> {
     }
     const container = await LoadAssetContainerAsync(`${import.meta.env.BASE_URL}models/${m.id}.glb`, scene);
     container.addAllToScene();
+    const wantAnim = q.get("anim");
+    for (const g of container.animationGroups) {
+      g.stop();
+      if (g.name === wantAnim) g.start(true);
+    }
     const holder = new TransformNode(m.id, scene);
     holder.parent = root;
     for (const r of container.rootNodes) r.parent = holder;

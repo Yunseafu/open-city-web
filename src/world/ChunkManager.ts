@@ -22,6 +22,13 @@ interface LoadedChunk {
  * before real map data exists.
  */
 export class ChunkManager {
+  /**
+   * Called with each chunk's asset container before it is added to the scene. Chunk GLBs carry
+   * only material names (no textures); the material library swaps in the shared textured
+   * materials here.
+   */
+  onContainerLoaded?: (container: AssetContainer) => void;
+
   private chunks = new Map<string, LoadedChunk>();
   private loading = new Set<string>();
   private centre = "";
@@ -70,8 +77,15 @@ export class ChunkManager {
 
     try {
       const container = await LoadAssetContainerAsync(`${this.baseUrl}/${key}.glb`, this.scene);
+      this.onContainerLoaded?.(container);
       container.addAllToScene();
       for (const node of container.rootNodes) node.parent = root;
+      for (const mesh of container.meshes) {
+        // static world: no per-frame matrix or bounds work, nothing to pick
+        mesh.freezeWorldMatrix();
+        mesh.doNotSyncBoundingInfo = true;
+        mesh.isPickable = false;
+      }
       chunk.container = container;
     } catch {
       this.buildPlaceholder(chunk, x, z);

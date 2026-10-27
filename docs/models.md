@@ -44,7 +44,10 @@ Viewer (`/viewer.html`): `?cat=prop|building|sign|vehicle|character`, `?id=a,b`,
 | lots | 21 x 21 (four per block), 21 x 42 (two), 42 x 42 (one), 2 m alleys |
 
 Building width and depth are multiples of 3 m, height is `4.8 + (floors-1) * 3.6`.
-Facade walls start at a bay boundary, so tile seams never fall inside a window.
+Facade walls start at a bay boundary (u is a multiple of 3 from the corner), so tile seams never fall inside a window.
+The facade textures have floor lines at tile boundaries (windows 1.8 x 2.0 m, sill 0.95 m above the floor).
+With `v = -y`, floors line up when the ground floor is 3.6 m. Above a 4.8 m shopfront pass `vOff: -4.8`
+to `wall`/`box`/`prism` so floor lines land on 4.8 + 3.6k.
 
 ## Materials
 
@@ -74,8 +77,8 @@ Facade walls start at a bay boundary, so tile seams never fall inside a window.
   Horizontal faces: `u = x`, `v = -z` (north is image-up). Verified with `viewer.html?uvtest=1`.
 - Atlas materials (`mat_atlas_signs`, `mat_atlas_billboard`): UV0 is the 0-1 atlas coordinate,
   written at generation time into the sprite rect (gltfpack merges meshes per material, so the
-  runtime cannot remap later). Rects come from `public/textures/atlas/<atlas>.json` when present,
-  else the default layout in `tools/gen/lib/atlas.mjs` (see `docs/atlas.md`).
+  runtime cannot remap later). Rects come from `public/textures/atlas/<atlas>.json`, which the
+  texture work owns; `tools/gen/lib/atlas.mjs` reads them verbatim (see `docs/atlas.md`).
 
 ## Budgets (triangles, LOD0)
 

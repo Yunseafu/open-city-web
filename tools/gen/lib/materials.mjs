@@ -16,7 +16,7 @@ export const MATERIALS = {
   mat_road_marking_yellow: { color: "#c9a227", roughness: 0.65, tile: [4, 4] },
   mat_road_crosswalk: { color: "#c6cbd2", roughness: 0.7, tile: [4, 4] },
   mat_ground_sidewalk_tiles: { color: "#3a3d45", roughness: 0.85, tile: [4, 4] },
-  mat_ground_curb: { color: "#51555d", roughness: 0.8, tile: [2, 2] },
+  mat_ground_curb: { color: "#51555d", roughness: 0.8, tile: [2, 0.5] },
 
   // ---- walls ------------------------------------------------------------
   mat_wall_concrete_panel: { color: "#4b4f58", roughness: 0.88, tile: [4, 4] },
@@ -55,6 +55,7 @@ export const MATERIALS = {
   // ---- atlas materials: UV0 is 0-1 inside a sprite rect of the atlas -----------
   mat_atlas_signs: { color: "#1a1c24", emissive: "#c040ff", emissiveStrength: 1.5, atlas: true },
   mat_atlas_billboard: { color: "#202228", emissive: "#40c0ff", emissiveStrength: 1.2, atlas: true },
+  mat_atlas_decal: { color: "#555555", roughness: 0.9, alpha: 0.6, atlas: true }, // road arrows, manholes, stains, graffiti (alpha-blended)
 
   // ---- vehicles ---------------------------------------------------------
   mat_veh_paint: { color: "#ffffff", metallic: 0.6, roughness: 0.3, tint: true },
@@ -65,7 +66,7 @@ export const MATERIALS = {
   mat_veh_light_tail: { color: "#300508", emissive: "#ff1020", emissiveStrength: 4 },
 
   // ---- characters (cloth is white so vertex colour tints it) ----------------
-  mat_char_skin: { color: "#c89a82", roughness: 0.7 },
+  mat_char_skin: { color: "#f0d2bc", roughness: 0.7, tint: true }, // light base, vertex colour darkens to the skin tone
   mat_char_cloth: { color: "#ffffff", roughness: 0.85, tint: true },
   mat_char_leather: { color: "#2a211c", roughness: 0.6 },
 
@@ -73,6 +74,16 @@ export const MATERIALS = {
   mat_prop_plastic: { color: "#2a2d33", roughness: 0.5, tile: [1, 1] },
   mat_prop_rubber: { color: "#141416", roughness: 0.95 },
   mat_foliage_leaf: { color: "#1f4a2a", roughness: 0.8 },
+  // fabric awnings / curtains / laundry and shipping containers: white-ish base, vertex colour tints them
+  mat_fabric_awning: { color: "#ffffff", roughness: 0.9, tint: true, tile: [1, 1] },
+  mat_metal_container: { color: "#c4c8cc", metallic: 0.5, roughness: 0.6, tint: true, tile: [2, 2] },
+  mat_prop_paint_red: { color: "#8a1c1f", metallic: 0.3, roughness: 0.5, tile: [1, 1] },
+  mat_prop_paint_yellow: { color: "#b58a12", metallic: 0.3, roughness: 0.55, tile: [1, 1] },
+  mat_prop_paint_orange: { color: "#c4540f", roughness: 0.6 },
+  mat_prop_paint_green: { color: "#1d4a3a", metallic: 0.3, roughness: 0.55, tile: [1, 1] },
+  mat_prop_wood: { color: "#4a3626", roughness: 0.9, tile: [1, 1] },
+  mat_prop_bag: { color: "#0d0e11", roughness: 0.35 },
+  mat_prop_screen_blue: { color: "#06141c", emissive: "#2ab4ff", emissiveStrength: 2.5 },
 };
 
 export function material(id) {

@@ -31,7 +31,9 @@ async function genModels() {
   const assets = (await loadAssets()).filter((a) => !only?.length || only.includes(a.id));
   let failed = 0;
   for (const a of assets) {
-    const variants = a.variants ?? [{ suffix: "" }];
+    // the base model is always emitted; a variant with suffix "" overrides its params/seed
+    const variants = [...(a.variants ?? [])];
+    if (!variants.some((v) => !v.suffix)) variants.unshift({ suffix: "" });
     for (const v of variants) {
       const id = a.id + (v.suffix ?? "");
       const b = new ModelBuilder();
@@ -44,6 +46,10 @@ async function genModels() {
       else pack(raw, out);
       const over = a.budget && stats.tris > a.budget;
       if (over) failed++;
+      if (b.invertedTris || b.degenerateTris) {
+        console.warn(`WARN ${id}: ${b.invertedTris} triangles face against their normals, ${b.degenerateTris} are degenerate`);
+        if (b.invertedTris) failed++;
+      }
       const entry = {
         id, category: a.category, tags: a.tags ?? [], tris: stats.tris, verts: stats.verts, budget: a.budget ?? null,
         bytes: fs.statSync(out).size, bounds: { min: stats.min.map(round), max: stats.max.map(round) },

@@ -64,6 +64,9 @@ export class ModelBuilder {
     this.anchors = [];
     this.colliders = [];
     this.clips = [];
+    /** Counters for the sanity check in _emit; the generator reports them. */
+    this.invertedTris = 0;
+    this.degenerateTris = 0;
     /** Default vertex AO: number, or {y0, y1, lo, hi} (darker near the ground). Per-call `ao` overrides. */
     this.ao = null;
     /** Default vertex tint [r,g,b] multiplied into COLOR_0. Per-call `tint` overrides. */
@@ -125,7 +128,14 @@ export class ModelBuilder {
 
   /** Place another asset recipe (`{ build(b, rng, params) }`) at a transform. */
   place(asset, xf, rng, params) {
-    return this.with(xf, () => asset.build(this, rng, params));
+    // Recipes set b.ao / b.tint as defaults for themselves; do not let that leak into whatever is drawn next.
+    const { ao, tint } = this;
+    this.ao = null;
+    this.tint = null;
+    const out = this.with(xf, () => asset.build(this, rng, params ?? asset.params ?? {}));
+    this.ao = ao;
+    this.tint = tint;
+    return out;
   }
 
   // ---- metadata -----------------------------------------------------------
@@ -201,8 +211,18 @@ export class ModelBuilder {
       g.col.push(c[0], c[1], c[2], c[3]);
     }
     for (const t of idx) {
-      if (this.flip) g.idx.push(base + t[0], base + t[2], base + t[1]);
-      else g.idx.push(base + t[0], base + t[1], base + t[2]);
+      const [a, b2, c] = this.flip ? [base + t[0], base + t[2], base + t[1]] : [base + t[0], base + t[1], base + t[2]];
+      g.idx.push(a, b2, c);
+      // sanity check: the geometric normal must agree with the vertex normals (catches inverted faces)
+      const e1 = [g.pos[b2 * 3] - g.pos[a * 3], g.pos[b2 * 3 + 1] - g.pos[a * 3 + 1], g.pos[b2 * 3 + 2] - g.pos[a * 3 + 2]];
+      const e2 = [g.pos[c * 3] - g.pos[a * 3], g.pos[c * 3 + 1] - g.pos[a * 3 + 1], g.pos[c * 3 + 2] - g.pos[a * 3 + 2]];
+      const cr = v3.cross(e1, e2);
+      const len = v3.len(cr);
+      if (len < 1e-9) this.degenerateTris++;
+      else {
+        const dn = cr[0] * (g.nrm[a * 3] + g.nrm[b2 * 3] + g.nrm[c * 3]) + cr[1] * (g.nrm[a * 3 + 1] + g.nrm[b2 * 3 + 1] + g.nrm[c * 3 + 1]) + cr[2] * (g.nrm[a * 3 + 2] + g.nrm[b2 * 3 + 2] + g.nrm[c * 3 + 2]);
+        if (dn < 0) this.invertedTris++;
+      }
     }
   }
 
@@ -458,7 +478,8 @@ export class ModelBuilder {
       if (q.r === 0 && q2.r === 0) continue;
       for (let i = 0; i < seg; i++) {
         const a = ringStart[ri] + i, b = a + 1, c = ringStart[ri + 1] + i, d = c + 1;
-        idx.push([a, c, b], [b, c, d]);
+        if (q.r !== 0) idx.push([a, c, b]); // a == b at an apex: that triangle would be degenerate
+        if (q2.r !== 0) idx.push([b, c, d]);
       }
     }
     this.mesh(matId, P, N, UV, idx, o);

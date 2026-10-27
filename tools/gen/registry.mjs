@@ -6,7 +6,7 @@
 //     budget: 120,                // triangle budget; the generator fails when exceeded
 //     build(b, rng, params) {},   // draws into a ModelBuilder; origin = ground centre, +Z = front
 //     params: {},                 // optional: params used for the standalone model
-//     variants: [{ suffix, seed, params }], // optional: extra standalone models
+//     variants: [{ suffix, seed, params }], // optional: extra standalone models (the base model is always emitted)
 //     lot: {...},                 // buildings only, see docs/models.md
 //   }];
 import fs from "node:fs";
