@@ -79,7 +79,8 @@ to `wall`/`box`/`prism` so floor lines land on 4.8 + 3.6k.
 - `POSITION`, `NORMAL`, `TEXCOORD_0`, `COLOR_0`. No `TANGENT` (the runtime derives it), no `TEXCOORD_1` yet.
 - `COLOR_0.rgb` multiplies base colour: baked ambient occlusion (darker near the ground
   and in corners) and tint. The material library must enable vertex colours on these materials.
-- `-vtf`: UVs stay float32 in the packed GLB. Positions are 14-bit quantised, normals 8-bit.
+- `-vtf`: UVs stay float32 in the packed GLB. Positions are 14-bit quantised (`pack.mjs` retries with 15 or 16 bits, then float, when gltfpack
+  warns that 14 bits are too coarse for a mesh; today only chunk -2_2 needs 15), normals 8-bit.
 
 ## UV0
 
