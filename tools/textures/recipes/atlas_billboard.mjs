@@ -438,7 +438,7 @@ const SPRITES = [
 
 export const atlases = [
   {
-    name: "billboard",
+    name: "mat_atlas_billboard", // layout json: public/textures/atlas/mat_atlas_billboard.json
     id: "mat_atlas_billboard",
     size: [2048, 2048],
     grid: { cols: 4, rows: 8 },

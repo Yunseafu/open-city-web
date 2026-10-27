@@ -353,7 +353,7 @@ const SPRITES = [
 
 export const atlases = [
   {
-    name: "decal",
+    name: "mat_atlas_decal", // layout json: public/textures/atlas/mat_atlas_decal.json
     id: "mat_atlas_decal",
     size: [1024, 1024],
     grid: { cols: 4, rows: 4 },

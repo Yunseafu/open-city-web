@@ -7,6 +7,7 @@ import { NeonCanvas, NEON, circle, fillPolygon, fitUnit, rrect } from "../lib/gl
 import { ICONS } from "../lib/glow_icons.mjs";
 import { fitText, glyphColumn, glyphRow, kana, pseudoText, strokeFor } from "../lib/font.mjs";
 import { Field } from "../lib/field.mjs";
+import { Rgb } from "../lib/color.mjs";
 
 const PANELS = [
   [0.05, 0.055, 0.07],
@@ -15,6 +16,32 @@ const PANELS = [
   [0.075, 0.06, 0.05],
   [0.045, 0.045, 0.05],
 ];
+
+/**
+ * Draw at a stretched natural size (w*kx by h*ky) and box-filter back down to the cell, so the art looks right
+ * once the cell is stretched onto a wide (kx = 3) or tall (ky = 3) quad. Texel density becomes square on that quad.
+ */
+function anamorphic(draw, kx, ky) {
+  return (ctx) => {
+    const set = draw({ ...ctx, w: ctx.w * kx, h: ctx.h * ky });
+    const { w, h } = ctx;
+    const down = (src, ch) => {
+      const out = ch === 3 ? new Rgb(w, h) : new Field(w, h);
+      const n = kx * ky;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          for (let c = 0; c < ch; c++) {
+            let sum = 0;
+            for (let j = 0; j < ky; j++) for (let i = 0; i < kx; i++) sum += src.data[((y * ky + j) * w * kx + x * kx + i) * ch + c];
+            out.data[(y * w + x) * ch + c] = sum / n;
+          }
+        }
+      }
+      return out;
+    };
+    return { albedo: down(set.albedo, 3), emissive: down(set.emissive, 3), roughness: down(set.roughness, 1), metallic: down(set.metallic, 1), height: down(set.height, 1) };
+  };
+}
 
 /** Wrap a drawing function with a canvas; fn(S, u) gets unit helpers for the cell. */
 function sign(fn, { tube = 0.03, panelIndex, dirt } = {}) {
@@ -82,17 +109,43 @@ const glyphSign = (n, seed, c1, c2, layout, kanaText) =>
     u.latin(`${String(seed % 90 + 10)}-${String.fromCharCode(65 + (seed % 26))}`, 0.3, 0.8, 0.4, 0.08, c2);
   });
 
-// tall sign: narrow vertical panel centred in the cell
-const vertical = (n, seed, c1, c2, withLatin) =>
-  sign(
-    (S, u) => {
-      const { w, h } = u;
-      S.plate(0.3 * w, 0.04 * h, 0.7 * w, 0.96 * h, { radius: 6, color: [0.08, 0.085, 0.1] });
-      S.tube([rrect(0.31 * w, 0.05 * h, 0.69 * w, 0.95 * h, 6)], c2, { width: S.t * 0.55 });
-      S.tube(glyphColumn(pseudoText(n, seed), 0.35 * w, 0.1 * h, 0.3 * w, (withLatin ? 0.62 : 0.78) * h, 0.16), c1, { width: S.t * 0.85 });
-      void withLatin;
-    },
-    { tube: 0.032 },
+// Tall sign for a ~1:3 blade quad: drawn on a w x 3h canvas, then squeezed into the cell (see anamorphic).
+const vertical = (n, seed, c1, c2) =>
+  anamorphic(
+    sign(
+      (S, u) => {
+        const { w, h } = u;
+        S.plate(0.06 * w, 0.02 * h, 0.94 * w, 0.98 * h, { radius: 8, color: [0.075, 0.08, 0.095] });
+        S.tube([rrect(0.07 * w, 0.025 * h, 0.93 * w, 0.975 * h, 8)], c2, { width: S.t * 0.55 });
+        const gap = 0.18;
+        const gw = Math.min(0.52 * w, (0.86 * h) / (n + (n - 1) * gap));
+        const total = n * gw + (n - 1) * gap * gw;
+        S.tube(glyphColumn(pseudoText(n, seed, "hanzi"), (w - gw) / 2, (h - total) / 2, gw, total, gap), c1, { width: S.t * 0.95 });
+        // hanging bracket
+        S.tube([[[0.5 * w, 0.0], [0.5 * w, 0.025 * h]]], c2, { width: S.t * 0.4, core: false, dim: 0.9 });
+      },
+      { tube: 0.032 },
+    ),
+    1,
+    3,
+  );
+
+// Wide sign for a ~3:1 wall quad: icon on the left, kana over latin on the right.
+const wide = ({ kanaText, latin, icon, c1, c2, c3 }) =>
+  anamorphic(
+    sign((S, u) => {
+      u.frame(c3, 0.04, 0.12);
+      if (icon) S.tube(u.icon(icon, 0.04, 0.16, 0.7 / 3, 0.68), c1, { width: S.t * 0.95 });
+      const x0 = icon ? 0.3 : 0.08;
+      if (kanaText) {
+        u.kana(kanaText, x0, 0.16, 0.9 - x0 - 0.2, 0.34, c1, 0.12);
+        u.latin(latin, x0, 0.6, 0.9 - x0, 0.24, c2);
+      } else {
+        u.latin(latin, x0, 0.22, 0.9 - x0, 0.56, c1, 0.15);
+      }
+    }),
+    3,
+    1,
   );
 
 // ---------------------------------------------------------------- special signs
@@ -191,18 +244,18 @@ export const SPRITES = [
   ["power", iconOnly("power", "red", "red", 0.14)],
   ["blank_dark", sign((S, u) => { u.frame("purple", 0.1, 0.1, 0.5); }, { panelIndex: 4 })],
   ["bank", il("coin", "BANK", C.yellow, C.white, C.amber)],
-  ["data_hub", il("server", "DATA", C.cyan, C.green, C.blue)],
-  ["net_cafe", il("wifi", "NET CAFE", C.green, C.cyan, C.green)],
-  ["chromedoc", il("eye", "CHROME DOC", C.cyan, C.magenta, C.purple)],
+  ["wide_hotel", wide({ kanaText: "ホテル", latin: "HOTEL", icon: "bed", c1: C.cyan, c2: C.pink, c3: C.purple })],
+  ["wide_ramen", wide({ kanaText: "ラーメン", latin: "RAMEN", icon: "bowl", c1: C.amber, c2: C.magenta, c3: C.cyan })],
+  ["wide_cyberware", wide({ kanaText: "サイバー", latin: "CYBERWARE", icon: "chip", c1: C.cyan, c2: C.purple, c3: C.magenta })],
   ["drone_repair", il("drone", "DRONE FIX", C.amber, C.cyan, C.amber)],
-  ["noodle_24", sign((S, u) => { u.frame("amber"); u.latin("24", 0.2, 0.12, 0.6, 0.45, "amber", 0.18); u.kana("ラーメン", 0.14, 0.64, 0.72, 0.2, "magenta"); })],
+  ["wide_open_24h", wide({ latin: "OPEN 24H", c1: C.green, c2: C.amber, c3: C.green })],
   ["exit", sign((S, u) => { u.frame("green", 0.06, 0.08, 0.6); u.latin("EXIT", 0.14, 0.22, 0.72, 0.28, "green", 0.17); S.tube(u.icon("arrow", 0.3, 0.6, 0.4, 0.22), "green", { width: S.t * 0.8 }); })],
   ["taxi", sign((S, u) => { u.frame("amber", 0.06, 0.08, 0.6); u.latin("TAXI", 0.14, 0.22, 0.72, 0.3, "amber", 0.17); S.tube(u.icon("chevrons", 0.2, 0.64, 0.6, 0.22), "yellow", { width: S.t * 0.8 }); })],
 ];
 
 export const atlases = [
   {
-    name: "signs",
+    name: "mat_atlas_signs", // layout json: public/textures/atlas/mat_atlas_signs.json (the models tools look it up by material id)
     id: "mat_atlas_signs",
     size: [2048, 2048],
     grid: { cols: 8, rows: 8 },
