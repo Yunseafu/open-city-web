@@ -1,20 +1,24 @@
 // gltfpack wrapper for generated assets: meshopt compression + 16-bit quantised attributes.
 // Material and node names are the contract with the runtime, so named ones are kept.
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
+//
+// Runs the gltfpack Wasm library in-process instead of spawning its cli.js per model: on Windows the
+// cli's process.exit() intermittently aborts Node with a libuv assertion (src\win\async.c), and one
+// Wasm instance for the whole run is also faster than a node process per model.
+import fs from "node:fs";
+import { pack as gltfpack } from "gltfpack";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const GLTFPACK = path.resolve(here, "../../../node_modules/gltfpack/cli.js");
+const iface = {
+  read: (file) => fs.readFileSync(file),
+  write: (file, data) => fs.writeFileSync(file, data),
+};
 
 /**
  * @param {string} input raw GLB
  * @param {string} output packed GLB
  * @param {{simplify?: number, positionBits?: number}} opts simplify = triangle ratio to keep (edge collapse)
  */
-export function pack(input, output, { simplify = 1, positionBits = 14 } = {}) {
+export async function pack(input, output, { simplify = 1, positionBits = 14 } = {}) {
   const args = [
-    GLTFPACK,
     "-i", input,
     "-o", output,
     "-cc",                         // meshopt compression, higher ratio
@@ -26,8 +30,10 @@ export function pack(input, output, { simplify = 1, positionBits = 14 } = {}) {
     "-vc", "8",
   ];
   if (simplify < 1) args.push("-si", String(simplify));
-  const res = spawnSync(process.execPath, args, { encoding: "utf8" });
-  if (res.status !== 0) {
-    throw new Error(`gltfpack failed for ${input}\n${res.stdout}\n${res.stderr}`);
+  // The library keeps global state, so calls must not overlap: every caller awaits.
+  try {
+    await gltfpack(args, iface);
+  } catch (err) {
+    throw new Error(`gltfpack failed for ${input}\n${err instanceof Error ? err.message : String(err)}`);
   }
 }

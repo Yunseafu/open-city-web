@@ -484,7 +484,7 @@ export async function genChunks({ root, rawDir, radius = 2, pack: doPack = true,
       const raw = path.join(rawDir, `chunk_${key}.glb`);
       const stats = await writeGlb(b, raw, { name: `chunk_${key}`, extras: { chunk: [cx, cz] } });
       const out = path.join(outDir, `${key}.glb`);
-      if (doPack) pack(raw, out, { positionBits: 14 });
+      if (doPack) await pack(raw, out, { positionBits: 14 });
       else fs.copyFileSync(raw, out);
       const sidecar = {
         chunk: [cx, cz],

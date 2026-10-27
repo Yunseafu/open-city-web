@@ -43,7 +43,7 @@ async function genModels() {
       const stats = await writeGlb(b, raw, { name: id, extras: { id, category: a.category, budget: a.budget ?? null } });
       const out = path.join(outDir, `${id}.glb`);
       if (flag("no-pack")) fs.copyFileSync(raw, out);
-      else pack(raw, out);
+      else await pack(raw, out);
       const over = a.budget && stats.tris > a.budget;
       if (over) failed++;
       if (b.invertedTris || b.degenerateTris) {
