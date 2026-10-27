@@ -72,6 +72,8 @@ function asphaltBase(ctx) {
   height = add(height, mul(patchSoft, -0.0));
   height = add(height, map(crack, (c) => -c * 0.55));
   height = add(height, mul(map(blur(patch, 2, 2), (v) => v), 0.12));
+  // City asphalt reads between linear 0.04 and 0.1; keep it from collapsing to black under neon.
+  for (let i = 0; i < tint.data.length; i++) tint.data[i] = Math.min(1, tint.data[i] * 1.4);
   return { albedo: tint, height, stain, crack, patchSoft, blotch, mottle, ctx };
 }
 
@@ -96,7 +98,7 @@ export const recipes = [
     tileSizeM: 4,
     size: [1024, 1024],
     relief: { depthM: 0.012, strength: 1.2 },
-    params: { baseColor: [1, 1, 1], metallic: 1, roughness: 1, envIntensity: 1.5 },
+    params: { baseColor: [1, 1, 1], metallic: 1, roughness: 1, envIntensity: 1.5, normalStrength: 0.5 },
     note: "rain-soaked asphalt: damp film everywhere, mirror puddles in the low spots (same layout as mat_road_asphalt)",
     build(ctx) {
       const b = asphaltBase(ctx);
@@ -117,9 +119,9 @@ export const recipes = [
       // Water fills the surface relief: flatten height inside puddles.
       const height = mix(b.height, 0.25, mul(puddle, 0.97));
       // Damp film (0.28) with some variation, glassy water (0.045) in the puddles, rim in between.
-      let roughness = add(0.3, mul(map(b.mottle, (v) => v - 0.5), 0.2));
-      roughness = mix(roughness, 0.22, rim);
-      roughness = mix(roughness, 0.045, puddle);
+      let roughness = add(0.17, mul(map(b.mottle, (v) => v - 0.5), 0.12));
+      roughness = mix(roughness, 0.1, rim);
+      roughness = mix(roughness, 0.03, puddle);
       // Subtle ripples/dirt inside the puddles keep reflections from looking CG-perfect.
       const ripple = fbm(w, h, { fx: px * 10, fy: py * 10, octaves: 2, seed: ctx.sub(23) });
       roughness = add(roughness, mul(mul(puddle, map(ripple, (v) => v - 0.5)), 0.04));

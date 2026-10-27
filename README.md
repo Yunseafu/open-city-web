@@ -26,9 +26,14 @@ The meshopt and KTX2/Basis decoders are self-hosted: `npm run decoders` (also ru
 `prebuild`) writes them to `public/decoders/` (gitignored) from the npm packages, so the game never
 loads anything from a CDN. `src/materials/decoders.ts` points Babylon at them.
 
+## Materials
+
+Procedural PBR textures, the KTX2 pipeline and the `mat_*` contract with the models pipeline are
+described in `docs/materials.md` (`npm run textures`, `npm test`).
+
 ## Materials preview
 
-`npm run dev`, then open `/materials.html` for the material gallery (`?ids=a,b`, `?full=1`,
+`npm run dev`, then open `/street.html` for a wet night street built from the library, or `/materials.html` for the material gallery (`?ids=a,b`, `?full=1`,
 `?tier=low`, `?test=normal`, `?test=bind`). `npm run shots -- --page materials|normal|bind|game`
 renders it headless with the preinstalled Playwright Chromium into `shots/`.
 

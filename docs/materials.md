@@ -93,9 +93,36 @@ recipe looks the same at any resolution. Never use `Math.random()`; recipes are 
 
 ## Preview in the browser
 
-`materials.html` (dev server: `/materials.html`) shows every material on a sphere and a tile plane
-under the procedural night environment, plus a lit normal-map self-test.
-`npm run shots -- --page materials` saves a headless-Chromium screenshot to `shots/`.
+- `/materials.html` shows every material on a sphere and a tile plane under the procedural night
+  environment, plus lit self-tests (`?test=normal` checks the normal-map handedness against real
+  displaced geometry, `?test=bind` checks material binding and chunk unload).
+- `/street.html` assembles a wet night street from the library with the UV conventions above
+  (shots: `down`, `road`, `facade`, `sign`, `aerial`, `billboard`; `?tier=low|medium|high`, `?mirror=0`,
+  `?ssr=1`). It is the reference for how the materials should look together.
+- `npm run shots -- --page materials|street|normal|bind|game [--shot down]` renders them headless with
+  the preinstalled Playwright Chromium into `shots/` (software GL, slow but deterministic).
+
+## Look and rendering notes
+
+- Tone mapping is Khronos PBR-Neutral. ACES turns saturated neon white; neon tubes are emissive 4
+  (`mat_neon_*`), warm lights 2, head lights 8, tail lights 3, signs 3, billboards 1.6. Brighter just
+  desaturates to white.
+- Wet roads: `mat_road_asphalt_wet` has a glossy film (roughness about 0.17) and mirror puddles
+  (0.03). A cube environment alone cannot reflect nearby signs, so the street preview adds a
+  `MirrorTexture` on the road at the high tier. It re-renders the scene (cost grows with draw calls),
+  so it is not enabled in the game; if it goes in, restrict `renderList` to about 60 m, update every
+  second frame and gate it to the high tier. Babylon's SSR works too but turns road decals into noise
+  and fogs the car paint, so it is only an experiment switch (`?ssr=1`).
+- Quality tiers (`src/util/Quality.ts`) control anisotropy and bloom; the low tier has no
+  post-processing.
+
+## Known limits
+
+- KTX2 decoding was only exercised in headless Chromium (software GL, which transcodes to
+  uncompressed RGBA, so BC7 / ASTC / ETC2 paths are untested); check on a real GPU and on a phone.
+- No SSS on skin, no parallax or tessellation, no baked lightmaps yet (UV1 is reserved).
+- ETC1S compression on the colour maps can band on very smooth gradients; switch a map with
+  `codec: { albedo: "uastc" }` in its recipe if it shows.
 
 ## Catalog
 

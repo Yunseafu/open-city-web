@@ -27,7 +27,7 @@ export const flat = [
     id: "mat_veh_glass",
     params: { baseColor: [0.02, 0.03, 0.04], metallic: 0, roughness: 0.04, alphaMode: "blend", alpha: 0.4, envIntensity: 1.6, doubleSided: true },
   },
-  { id: "mat_veh_tire", params: { baseColor: [0.015, 0.015, 0.017], metallic: 0, roughness: 0.85 } },
+  { id: "mat_veh_tire", params: { baseColor: [0.015, 0.015, 0.017], metallic: 0, roughness: 0.85, envIntensity: 0.4 } },
   { id: "mat_veh_chrome", params: { baseColor: [0.9, 0.9, 0.92], metallic: 1, roughness: 0.06, envIntensity: 1.3 } },
   {
     id: "mat_veh_light_head",

@@ -449,7 +449,7 @@ export const atlases = [
       metallic: 1,
       roughness: 1,
       emissiveColor: [1, 1, 1],
-      emissiveIntensity: 2.5,
+      emissiveIntensity: 1.6,
       envIntensity: 1,
     },
     sprites: SPRITES.map(([name, cell, draw]) => ({ name, cell, draw })),
