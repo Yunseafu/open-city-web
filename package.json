@@ -14,7 +14,8 @@
     "decoders": "node tools/copy-decoders.mjs",
     "shots": "node tools/preview/shot.mjs",
     "test": "node --test tools/textures/test/*.test.mjs",
-    "textures:check": "node tools/textures/check.mjs"
+    "textures:check": "node tools/textures/check.mjs",
+    "docs:materials": "node tools/textures/docs.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "^7.30.0",

@@ -43,6 +43,16 @@
     "mat_prop_plastic",
     "mat_prop_rubber",
     "mat_light_warm",
-    "mat_foliage_leaf"
+    "mat_foliage_leaf",
+    "mat_prop_paint_red",
+    "mat_prop_paint_yellow",
+    "mat_prop_paint_orange",
+    "mat_prop_paint_green",
+    "mat_prop_wood",
+    "mat_prop_bag",
+    "mat_prop_screen_blue",
+    "mat_fabric_awning",
+    "mat_metal_container",
+    "mat_atlas_decal"
   ]
 }
