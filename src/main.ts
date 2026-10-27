@@ -5,14 +5,16 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import "@babylonjs/loaders/glTF";
-import { MeshoptCompression } from "@babylonjs/core/Meshes/Compression/meshoptCompression";
 
 import { ChunkManager } from "./world/ChunkManager";
+import { MaterialLibrary } from "./materials/MaterialLibrary";
+import { configureDecoders } from "./materials/decoders";
+import { createCyberEnvironment, CyberPostFx } from "./materials/CyberEnvironment";
 import { BUDGET_MB, MemoryMonitor } from "./util/MemoryMonitor";
 import { TIERS } from "./util/Quality";
 
-// Self-host the decoder in production (copy to /public/decoders) to avoid the CDN default.
-MeshoptCompression.Configuration.decoder.url = "https://cdn.jsdelivr.net/npm/meshoptimizer@0.20.0/meshopt_decoder.js";
+// Meshopt + KTX2 decoders are self-hosted in public/decoders (npm run decoders).
+configureDecoders();
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const hud = document.getElementById("hud") as HTMLDivElement;
@@ -37,14 +39,29 @@ camera.speed = 1.5;
 camera.minZ = 0.1;
 camera.maxZ = 1500;
 
+createCyberEnvironment(scene);
+const materials = new MaterialLibrary(scene);
+await materials.load();
+
 let tierIndex = 1;
 const chunks = new ChunkManager(scene);
+chunks.materials = materials;
+const postFx = new CyberPostFx(scene, camera, TIERS[tierIndex]);
 const applyTier = () => {
   const tier = TIERS[tierIndex];
   chunks.loadRadius = tier.loadRadius;
   engine.setHardwareScalingLevel(tier.renderScale);
+  materials.applyTier(tier);
+  postFx.apply(tier);
 };
 applyTier();
+
+// ?cam=x,y,z,yawDeg,pitchDeg places the camera, for tools/preview/shot.mjs.
+const cam = new URLSearchParams(location.search).get("cam")?.split(",").map(Number);
+if (cam?.length === 5 && cam.every(Number.isFinite)) {
+  camera.position.set(cam[0], cam[1], cam[2]);
+  camera.rotation.set((cam[4] * Math.PI) / 180, (cam[3] * Math.PI) / 180, 0);
+}
 
 let last = { text: "" };
 const monitor = new MemoryMonitor(scene, (s) => {
@@ -71,3 +88,15 @@ engine.runRenderLoop(() => {
   hud.textContent = `${engine.getFps().toFixed(0)} fps\n${last.text}`;
 });
 window.addEventListener("resize", () => engine.resize());
+
+// Signals tools/preview/shot.mjs: chunks streamed in and every requested texture settled.
+const waitReady = async () => {
+  while (chunks.loadedCount === 0) await new Promise((r) => setTimeout(r, 100));
+  await materials.whenReady();
+  scene.executeWhenReady(() => {
+    const w = window as unknown as { __previewReady?: boolean; __previewInfo?: unknown };
+    w.__previewInfo = { chunks: chunks.loadedCount, meshes: scene.meshes.length, materials: scene.materials.length, textures: scene.textures.length };
+    w.__previewReady = true;
+  });
+};
+void waitReady();
