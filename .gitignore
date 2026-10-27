@@ -2,3 +2,9 @@ node_modules
 dist
 tools/raw
 public/chunks/*.glb
+.cache
+public/decoders
+public/textures/*.ktx2
+public/textures/*.png
+public/textures/materials.json
+shots

@@ -20,6 +20,18 @@ npm run dev     # WASD + mouse look
 npm run build
 ```
 
+## Runtime decoders
+
+The meshopt and KTX2/Basis decoders are self-hosted: `npm run decoders` (also run by `predev` and
+`prebuild`) writes them to `public/decoders/` (gitignored) from the npm packages, so the game never
+loads anything from a CDN. `src/materials/decoders.ts` points Babylon at them.
+
+## Materials preview
+
+`npm run dev`, then open `/materials.html` for the material gallery (`?ids=a,b`, `?full=1`,
+`?tier=low`, `?test=normal`, `?test=bind`). `npm run shots -- --page materials|normal|bind|game`
+renders it headless with the preinstalled Playwright Chromium into `shots/`.
+
 ## Chunk pipeline
 
 ```bash
@@ -34,7 +46,6 @@ textures 350, geometry 120, lightmaps 80, JS heap 100, plus WASM, audio and misc
 
 ## TODO (next milestones)
 
-- Self-host the meshopt and Basis decoders instead of the CDN
 - M2: player controller, Rapier physics, weapons
 - M3: Node/WebSocket server-authoritative multiplayer
 - M4: data-driven quest and puzzle system
