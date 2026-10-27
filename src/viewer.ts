@@ -21,10 +21,14 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { GlowLayer } from "@babylonjs/core/Layers/glowLayer";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
-import { MeshoptCompression } from "@babylonjs/core/Meshes/Compression/meshoptCompression";
 import "@babylonjs/loaders/glTF";
 
-MeshoptCompression.Configuration.decoder.url = `${import.meta.env.BASE_URL}decoders/meshopt_decoder.js`;
+import { MaterialLibrary } from "./materials/MaterialLibrary";
+import { configureDecoders } from "./materials/decoders";
+import { createCyberEnvironment, CyberPostFx } from "./materials/CyberEnvironment";
+import { TIERS } from "./util/Quality";
+
+configureDecoders();
 
 interface ModelEntry {
   id: string;
@@ -37,6 +41,8 @@ interface ModelEntry {
 const q = new URLSearchParams(location.search);
 const view = q.get("view") ?? "gallery";
 const night = (q.get("light") ?? "night") === "night";
+// ?tex=0 shows the GLB fallback factors only (no texture library, no cyber environment / bloom).
+const useTex = q.get("tex") !== "0";
 
 const canvas = document.getElementById("view") as HTMLCanvasElement;
 const info = document.getElementById("info") as HTMLDivElement;
@@ -50,7 +56,19 @@ hemi.groundColor = night ? new Color3(0.05, 0.04, 0.09) : new Color3(0.3, 0.3, 0
 const sun = new DirectionalLight("sun", new Vector3(-0.4, -1, -0.5), scene);
 sun.intensity = night ? 0.35 : 1.4;
 sun.diffuse = night ? new Color3(0.5, 0.6, 1) : new Color3(1, 0.95, 0.85);
-if (night) new GlowLayer("glow", scene, { blurKernelSize: 24 }).intensity = 0.9;
+const materials = useTex ? new MaterialLibrary(scene) : null;
+if (materials) {
+  createCyberEnvironment(scene);
+  if (night) hemi.intensity *= 0.6;
+  else {
+    // inspection light: the cyber environment alone is too dark to judge a model by
+    hemi.intensity = 1.8;
+    sun.intensity = 2.6;
+  }
+  await materials.load();
+} else if (night) {
+  new GlowLayer("glow", scene, { blurKernelSize: 24 }).intensity = 0.9;
+}
 
 const cam = new ArcRotateCamera("cam", -Math.PI / 2, 1.1, 20, Vector3.Zero(), scene);
 cam.attachControl(canvas, true);
@@ -58,6 +76,13 @@ cam.minZ = 0.05;
 cam.maxZ = 4000;
 cam.wheelPrecision = 2;
 cam.lowerRadiusLimit = 0.5;
+
+// Night view uses the full tier (bloom on); ?tier=low|mid|high picks another one.
+const tier = TIERS.find((t) => t.name === q.get("tier")) ?? TIERS[0];
+if (materials) {
+  materials.applyTier(tier);
+  if (night) new CyberPostFx(scene, cam, tier);
+}
 
 const root = new TransformNode("content", scene);
 
@@ -136,6 +161,7 @@ async function loadGallery(): Promise<{ min: Vector3; max: Vector3 }> {
     }
     const container = await LoadAssetContainerAsync(`${import.meta.env.BASE_URL}models/${m.id}.glb`, scene);
     container.addAllToScene();
+    materials?.bindContainer(container);
     const wantAnim = q.get("anim");
     for (const g of container.animationGroups) {
       g.stop();
@@ -159,7 +185,7 @@ async function loadGallery(): Promise<{ min: Vector3; max: Vector3 }> {
   const ground = MeshBuilder.CreateGround("ground", { width: max.x + 40, height: max.z + 40 }, scene);
   ground.position.set(max.x / 2, -0.01, max.z / 2);
   const gm = new StandardMaterial("gm", scene);
-  gm.diffuseColor = new Color3(0.07, 0.075, 0.09);
+  gm.diffuseColor = night ? new Color3(0.07, 0.075, 0.09) : new Color3(0.1, 0.105, 0.12);
   gm.specularColor = Color3.Black();
   ground.material = gm;
   ground.parent = root;
@@ -179,6 +205,7 @@ async function loadChunk(): Promise<{ min: Vector3; max: Vector3 }> {
       try {
         const container = await LoadAssetContainerAsync(`${import.meta.env.BASE_URL}chunks/${k}.glb`, scene);
         container.addAllToScene();
+        materials?.bindContainer(container);
         const holder = new TransformNode(`chunk_${k}`, scene);
         holder.parent = root;
         for (const r of container.rootNodes) r.parent = holder;
@@ -226,5 +253,7 @@ engine.runRenderLoop(() => {
 });
 window.addEventListener("resize", () => engine.resize());
 scene.executeWhenReady(() => {
-  (window as unknown as { __viewerReady: boolean }).__viewerReady = true;
+  void (materials?.whenReady() ?? Promise.resolve()).then(() => {
+    (window as unknown as { __viewerReady: boolean }).__viewerReady = true;
+  });
 });

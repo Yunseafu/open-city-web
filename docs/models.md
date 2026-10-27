@@ -15,8 +15,13 @@ npm run dev            # then open /viewer.html
 ```
 
 Viewer (`/viewer.html`): `?cat=prop|building|sign|vehicle|character`, `?id=a,b`, `?view=chunk&chunk=0_0&radius=1`,
-`&light=day|night`, `&wire=1`, `&uvtest=1` (puts an upright "F" checker on every tiled material),
-`&cam=alphaDeg,betaDeg,radius[,tx,ty,tz]`.
+`&light=day|night` (night = cyber environment + bloom, day = bright inspection light), `&tex=0` (GLB fallback
+factors only, no texture library), `&tier=high|medium|low`, `&wire=1`, `&uvtest=1` (puts an upright "F" checker
+on every tiled material), `&anim=walk` (characters), `&row=<metres>` (gallery row width),
+`&cam=alphaDeg,betaDeg,radius[,tx,ty,tz]`. The viewer binds the shared material library exactly like the game.
+
+`CITY_TALLY=1 node tools/gen/index.mjs chunks` prints, per chunk, where the triangles go (roads, buildings,
+furniture, alleys, plazas, parking lots).
 
 ## Space and units
 
@@ -60,7 +65,14 @@ to `wall`/`box`/`prism` so floor lines land on 4.8 + 3.6k.
   `material.extras` carries `{ tile, atlas, tint }` hints.
 - Neon and lights are pure emissive materials (`mat_neon_*`, `mat_light_warm`, `mat_veh_light_*`).
   Bloom is a runtime post effect; do not fake glow with extra geometry.
-- `mat_veh_paint`, `mat_char_cloth`: white materials tinted through vertex colour.
+- `mat_veh_paint`, `mat_char_skin`, `mat_char_cloth`, `mat_fabric_awning`, `mat_metal_container` have `tint: true`: their
+  base colour is light and the colour of the individual model comes from `COLOR_0`. The runtime material
+  **must** keep vertex colours enabled on these (the library does).
+- `mat_atlas_decal` is alpha-blended (road arrows, manholes, stains, drain grates) and sits 4.5 cm above the
+  road; it needs `zOffset` / depth bias at runtime to avoid z-fighting at distance.
+- Materials a recipe uses that the texture set has no entry for yet (`mat_prop_paint_*`, `mat_prop_wood`,
+  `mat_prop_bag`, `mat_prop_screen_blue`, `mat_fabric_awning`, `mat_metal_container`) keep the GLB fallback
+  factors; the library logs one warning per id.
 
 ## Vertex data
 
@@ -97,6 +109,53 @@ to `wall`/`box`/`prism` so floor lines land on 4.8 + 3.6k.
 `npm run gen:models` fails when a recipe exceeds its budget. Generated vertices are not shared
 between flat faces (hard edges), so a quad costs 4 vertices; the monitor's geometry estimate
 assumes about 24 bytes per vertex after packing.
+
+## Catalogue (generated, `public/models/index.json`)
+
+| category | models | triangles each | notes |
+| --- | --- | --- | --- |
+| building | 67 | 480 - 2600 | 26 recipes (10 tower recipes for downtown/mid zones, 16 low/mid-rise: shops, apartments, industrial, residential), 2 variants each where it pays off |
+| prop | 49 | 54 - 740 | street lights, traffic lights, utility poles, bus stop, kiosk, vending, barriers, alley clutter, plaza items |
+| sign | 83 | 18 - 320 | wall, blade and roof signs, billboards, neon strips, neon text; sprites come from the sign atlas |
+| vehicle | 24 | 1240 - 2000 | sedan, hatch, coupe, SUV, pickup, taxi, police, van, box truck, bus, armoured, hover coupe, motorcycle; nodes `wheel_FL/FR/RL/RR`, anchors for head/tail lights |
+| character | 16 | 1440 - 1920 | player male/female, civilians, cops, gang, corp guards/exec, mannequin; skeleton nodes + clips `idle`, `walk`, `run`, `aim` |
+
+Vehicle colour variants are separate models (same recipe, different `COLOR_0` tint); all of them share
+the three `mat_veh_*` materials, so they cost no extra texture memory.
+
+## City layout (`tools/gen/city.mjs`)
+
+- The world is an endless grid of 128 m chunks (`public/chunks/<cx>_<cz>.glb`, radius 2 around the origin is
+  generated: 25 chunks, about 13 MB on disk). Roads are 14 m wide with 3 m sidewalks, centred on chunk-local
+  x or z = 0 / 64 / 128; a block (44 m + sidewalks) sits between them, so 4 blocks per chunk.
+- Every block is split into 1, 2 or 4 lots (21 m or 42 m wide, 2 m alleys). A lot gets a building, now and then a
+  plaza (props only) or a parking lot (asphalt + parked cars). The building comes from the recipes tagged
+  `zone:downtown|mid|commercial|residential|industrial`, chosen by distance from the world origin; the lot
+  decides footprint (snapped to the 3 m bay) and facing.
+- Street furniture on the sidewalks: street lights every ~32 m, small props, barriers, traffic lights on the
+  four block corners, parked cars in the kerb lane (right-hand traffic).
+- Chunk geometry is flattened into one mesh per material (`flatten: true`) and packed with gltfpack.
+- Everything is seeded (`hash(cx, cz, ...)`), so a chunk is identical on every machine and every run.
+- Budget: a chunk stays below 60 000 triangles. Parked cars are the heaviest items (about 1500 each), so they
+  stop being placed once a chunk reaches `SOFT_CHUNK_TRIS` (44 000). Today the 25 chunks have 28k - 46k
+  triangles (955k in total), so the radius-1 neighbourhood the game keeps loaded is about 350k - 400k.
+
+### Chunk sidecar `<cx>_<cz>.json`
+
+```jsonc
+{
+  "chunk": [0, 0], "size": 128, "tris": 45378,
+  "anchors":   [{ "name": "light.entrance", "pos": [x, y, z], "rotY": 0, "color": "#ffd9a0", "intensity": 1, "range": 14 }],
+  "colliders": [{ "c": [x, y, z], "h": [hx, hy, hz], "rotY": 0 }],   // oriented boxes, chunk-local metres
+  "lots":      [{ "cx": 32, "cz": 32, "kind": "building", "id": "bhigh_...", "floors": 28, "heading": 0, "w": 36, "d": 36 }],
+  "roads":     { "width": 14, "sidewalk": 3, "laneOffsets": [-5.25, -1.75, 1.75, 5.25],
+                 "alongX": [{ "z": 0, "x0": 0, "x1": 128 }, ...], "alongZ": [{ "x": 0, "z0": 0, "z1": 128 }, ...] },
+  "spawns":    [{ "type": "player", "pos": [72.5, 0.15, 36], "rotY": 0 }]   // only on chunk 0_0
+}
+```
+
+`anchors` named `light.*` are meant for the runtime light pool (a handful of real point lights near the player;
+everything else is emissive material plus bloom). `roads` gives traffic and navigation the lane centre lines.
 
 ## Gameplay data
 

@@ -26,7 +26,9 @@ const N = 0, E = Math.PI / 2, S = Math.PI, W = -Math.PI / 2; // compass headings
 // Tunables
 const STREETLIGHT_SPACING = 32;
 const SMALL_PROP_SPACING = 11;
-const PARKED_CAR_CHANCE = 0.32;
+const PARKED_CAR_CHANCE = 0.14;
+// Cars are the heaviest street items (~1500 tris each): optional furniture stops once a chunk reaches this.
+const SOFT_CHUNK_TRIS = 44000;
 
 // ---------------------------------------------------------------------------------------------
 // Fallback building, used when no recipe matches (keeps the city buildable while recipes grow).
@@ -307,7 +309,7 @@ function placeParkingLot(b, ctx, lot, rng) {
   b.box("mat_road_asphalt", [lot.cx - lot.ex / 2, CURB_H, lot.cz - lot.ez / 2], [lot.cx + lot.ex / 2, CURB_H + 0.01, lot.cz + lot.ez / 2], { skip: ["b", "s", "e", "n", "w"] });
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 5; col++) {
-      if (rng.chance(0.4)) continue;
+      if (rng.chance(0.62) || b.triCount() > SOFT_CHUNK_TRIS) continue;
       const x = lot.cx - lot.ex / 2 + 3.5 + col * 3.6, z = lot.cz - lot.ez / 2 + 5 + row * 7.5;
       if (x > lot.cx + lot.ex / 2 - 2 || z > lot.cz + lot.ez / 2 - 3) continue;
       b.place(rng.pick(cars), { pos: [x, CURB_H, z], rotY: rng.chance(0.5) ? N : S }, rng.fork(row * 10 + col), { color: rng.pick(CAR_COLOURS) });
@@ -376,7 +378,7 @@ function furnishBlock(b, ctx, bx0, bz0, rng) {
     if (cars.length) {
       const faceHeading = side.name === "N" ? E : side.name === "S" ? W : side.name === "E" ? S : N;
       for (let t = 12; t < side.len - 10; t += 7) {
-        if (!rng.chance(PARKED_CAR_CHANCE)) continue;
+        if (!rng.chance(PARKED_CAR_CHANCE) || b.triCount() > SOFT_CHUNK_TRIS) continue;
         const [x, z] = sidewalkPos(side, t + rng.range(-0.5, 0.5), -1.55);
         if (!inChunk(x, z, 1)) continue;
         b.place(rng.pick(cars), { pos: [x, 0, z], rotY: faceHeading + rng.range(-0.04, 0.04) }, rng.fork(Math.floor(t * 3)), { color: rng.pick(CAR_COLOURS) });
@@ -421,8 +423,15 @@ export async function buildChunk(cx, cz, ctx) {
   const wx0 = cx * CHUNK, wz0 = cz * CHUNK;
   const lotsInfo = [];
 
-  drawRoads(b, rng.fork(1));
-  drawBlockSlabs(b);
+  const tally = {};
+  const mark = (name, fn) => {
+    const before = b.triCount();
+    fn();
+    tally[name] = (tally[name] ?? 0) + b.triCount() - before;
+  };
+
+  mark("roads", () => drawRoads(b, rng.fork(1)));
+  mark("slabs", () => drawBlockSlabs(b));
 
   let bi = 0;
   for (const [x0] of blockRanges) {
@@ -435,20 +444,22 @@ export async function buildChunk(cx, cz, ctx) {
         const wx = wx0 + lot.cx, wz = wz0 + lot.cz;
         const dist = Math.hypot(wx, wz) / PITCH;
         if (roll < 0.07 && dist > 1.5) {
-          placePlaza(b, ctx, lot, lrng);
+          mark("plaza", () => placePlaza(b, ctx, lot, lrng));
           lotsInfo.push({ cx: lot.cx, cz: lot.cz, kind: "plaza" });
         } else if (roll < 0.12 && dist > 2) {
-          placeParkingLot(b, ctx, lot, lrng);
+          mark("parking", () => placeParkingLot(b, ctx, lot, lrng));
           lotsInfo.push({ cx: lot.cx, cz: lot.cz, kind: "parking" });
         } else {
-          lotsInfo.push({ cx: lot.cx, cz: lot.cz, kind: "building", ...placeBuilding(b, ctx, lot, wx, wz, lrng) });
+          let info;
+          mark("buildings", () => { info = placeBuilding(b, ctx, lot, wx, wz, lrng); });
+          lotsInfo.push({ cx: lot.cx, cz: lot.cz, kind: "building", ...info });
         }
       }
-      furnishAlleys(b, ctx, alleys, brng.fork(5));
-      furnishBlock(b, ctx, x0, z0, brng.fork(6));
+      mark("alleys", () => furnishAlleys(b, ctx, alleys, brng.fork(5)));
+      mark("furniture", () => furnishBlock(b, ctx, x0, z0, brng.fork(6)));
     }
   }
-  return { b, lotsInfo };
+  return { b, lotsInfo, tally };
 }
 
 export async function genChunks({ root, rawDir, radius = 2, pack: doPack = true, ifMissing = false }) {
@@ -468,7 +479,7 @@ export async function genChunks({ root, rawDir, radius = 2, pack: doPack = true,
   const t0 = Date.now();
   for (let cx = -radius; cx <= radius; cx++) {
     for (let cz = -radius; cz <= radius; cz++) {
-      const { b, lotsInfo } = await buildChunk(cx, cz, ctx);
+      const { b, lotsInfo, tally } = await buildChunk(cx, cz, ctx);
       const key = `${cx}_${cz}`;
       const raw = path.join(rawDir, `chunk_${key}.glb`);
       const stats = await writeGlb(b, raw, { name: `chunk_${key}`, extras: { chunk: [cx, cz] } });
@@ -497,6 +508,7 @@ export async function genChunks({ root, rawDir, radius = 2, pack: doPack = true,
       worst = Math.max(worst, stats.tris);
       const kb = (fs.statSync(out).size / 1024).toFixed(0);
       console.log(`chunk ${key.padEnd(6)} ${String(stats.tris).padStart(6)} tris  ${String(kb).padStart(5)} KB  ${b.colliders.length} colliders  ${b.anchors.length} anchors`);
+      if (process.env.CITY_TALLY) console.log("       " + Object.entries(tally).map(([k, v]) => `${k} ${v}`).join("  "));
     }
   }
   console.log(`city: ${total} tris total, worst chunk ${worst}, ${((Date.now() - t0) / 1000).toFixed(1)} s`);

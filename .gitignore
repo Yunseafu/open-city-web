@@ -4,3 +4,9 @@ tools/raw
 public/chunks/*.glb
 public/chunks/*.json
 public/models
+.cache
+public/decoders
+public/textures/*.ktx2
+public/textures/*.png
+public/textures/materials.json
+shots

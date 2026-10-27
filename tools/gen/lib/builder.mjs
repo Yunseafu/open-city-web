@@ -573,6 +573,17 @@ export class ModelBuilder {
   }
 
   // ---- stats --------------------------------------------------------------
+  /** Triangle count so far (cheap: no bounds walk). */
+  triCount() {
+    let tris = 0;
+    const walk = (node) => {
+      for (const g of node.geo.values()) tris += g.tris;
+      for (const ch of node.children) walk(ch);
+    };
+    walk(this.root);
+    return tris;
+  }
+
   stats() {
     let tris = 0, verts = 0;
     const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];

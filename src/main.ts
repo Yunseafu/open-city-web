@@ -4,18 +4,17 @@ import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { GlowLayer } from "@babylonjs/core/Layers/glowLayer";
-import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
 import "@babylonjs/loaders/glTF";
-import { MeshoptCompression } from "@babylonjs/core/Meshes/Compression/meshoptCompression";
 
 import { ChunkManager } from "./world/ChunkManager";
+import { MaterialLibrary } from "./materials/MaterialLibrary";
+import { configureDecoders } from "./materials/decoders";
+import { createCyberEnvironment, CyberPostFx } from "./materials/CyberEnvironment";
 import { BUDGET_MB, MemoryMonitor } from "./util/MemoryMonitor";
 import { TIERS } from "./util/Quality";
 
-// Self-hosted decoder (public/decoders/meshopt_decoder.js, from the meshoptimizer package).
-MeshoptCompression.Configuration.decoder.url = `${import.meta.env.BASE_URL}decoders/meshopt_decoder.js`;
+// Meshopt + KTX2 decoders are self-hosted in public/decoders (npm run decoders).
+configureDecoders();
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const hud = document.getElementById("hud") as HTMLDivElement;
@@ -29,18 +28,6 @@ scene.fogColor = new Color3(0.03, 0.02, 0.08);
 
 const light = new HemisphericLight("sky", new Vector3(0, 1, 0), scene);
 light.intensity = 0.35;
-light.groundColor = new Color3(0.04, 0.03, 0.08);
-// dim cold moonlight so facades read as shapes between the neon
-const moon = new DirectionalLight("moon", new Vector3(-0.4, -1, -0.6), scene);
-moon.diffuse = new Color3(0.45, 0.55, 1);
-moon.intensity = 0.4;
-
-// Neon is emissive with strength up to 4: tone map it and let the glow layer bloom it.
-scene.imageProcessingConfiguration.toneMappingEnabled = true;
-scene.imageProcessingConfiguration.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
-scene.imageProcessingConfiguration.exposure = 1.1;
-const glow = new GlowLayer("glow", scene, { mainTextureFixedSize: 512, blurKernelSize: 32 });
-glow.intensity = 0.8;
 
 // Start on the sidewalk next to the first intersection (matches the player spawn in public/chunks/0_0.json).
 const camera = new UniversalCamera("cam", new Vector3(72.5, 2.0, 36), scene);
@@ -53,15 +40,29 @@ camera.speed = 1.5;
 camera.minZ = 0.1;
 camera.maxZ = 1500;
 
+createCyberEnvironment(scene);
+const materials = new MaterialLibrary(scene);
+await materials.load();
+
 let tierIndex = 1;
 const chunks = new ChunkManager(scene);
+chunks.materials = materials;
+const postFx = new CyberPostFx(scene, camera, TIERS[tierIndex]);
 const applyTier = () => {
   const tier = TIERS[tierIndex];
   chunks.loadRadius = tier.loadRadius;
   engine.setHardwareScalingLevel(tier.renderScale);
-  glow.isEnabled = tier.glow;
+  materials.applyTier(tier);
+  postFx.apply(tier);
 };
 applyTier();
+
+// ?cam=x,y,z,yawDeg,pitchDeg places the camera, for tools/preview/shot.mjs.
+const cam = new URLSearchParams(location.search).get("cam")?.split(",").map(Number);
+if (cam?.length === 5 && cam.every(Number.isFinite)) {
+  camera.position.set(cam[0], cam[1], cam[2]);
+  camera.rotation.set((cam[4] * Math.PI) / 180, (cam[3] * Math.PI) / 180, 0);
+}
 
 let last = { text: "" };
 const monitor = new MemoryMonitor(scene, (s) => {
@@ -89,5 +90,17 @@ engine.runRenderLoop(() => {
 });
 window.addEventListener("resize", () => engine.resize());
 
+// Signals tools/preview/shot.mjs: chunks streamed in and every requested texture settled.
+const waitReady = async () => {
+  while (chunks.loadedCount === 0) await new Promise((r) => setTimeout(r, 100));
+  await materials.whenReady();
+  scene.executeWhenReady(() => {
+    const w = window as unknown as { __previewReady?: boolean; __previewInfo?: unknown };
+    w.__previewInfo = { chunks: chunks.loadedCount, meshes: scene.meshes.length, materials: scene.materials.length, textures: scene.textures.length };
+    w.__previewReady = true;
+  });
+};
+void waitReady();
+
 // Dev handle for scripted screenshots and console poking.
-if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { engine, scene, camera, chunks, glow };
+if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { engine, scene, camera, chunks, materials };
