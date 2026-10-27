@@ -1,0 +1,246 @@
+// Humanoid characters: rigid segmented rigs with idle / walk / run / aim clips.
+// See tools/gen/lib/char_rig.mjs for the joint hierarchy and rotation conventions.
+import { addClips, buildCharacter } from "../lib/char_rig.mjs";
+
+function character(id, tags, params) {
+  return {
+    id,
+    category: "character",
+    tags: ["character", ...tags],
+    budget: 2500,
+    params,
+    build(b, r, p) {
+      buildCharacter(b, r, p);
+      addClips(b, p);
+    },
+  };
+}
+
+const MALE = { height: 1.8, shoulder: 0.205, chest: 0.19, waist: 0.15, hip: 0.17 };
+const FEMALE = { height: 1.7, legRatio: 1.03, shoulder: 0.176, chest: 0.164, waist: 0.122, hip: 0.186, depth: 0.93, bust: 0.7, limb: 0.88, headScale: 0.94 };
+
+export const assets = [
+  character("char_mannequin", ["rig_test"], {
+    ...MALE,
+    skin: "#8f959e",
+    top: { style: "shirt", sleeves: "long", color: "#8f959e", collar: "none", zip: false, hem: null },
+    bottom: { kind: "pants", color: "#8f959e", baggy: 1, cuff: false },
+    boots: { kind: "sneakers", color: "#8f959e", high: false, sole: "#b4b9c0" },
+    hair: { style: "bald", color: "#8f959e" },
+    face: { visor: null, beard: false },
+  }),
+
+  character("char_player_male", ["player"], {
+    ...MALE,
+    height: 1.82,
+    skin: "#c08e70",
+    top: { style: "jacket", sleeves: "long", color: "#262a33", collar: "high", trim: "mat_neon_amber", zip: true, hem: -0.12, pockets: true },
+    bottom: { kind: "pants", color: "#1b1e24", baggy: 1.08, cuff: true, stripe: "mat_neon_amber" },
+    boots: { kind: "boots", color: "#15161a", high: true, sole: "#0e0e10" },
+    hair: { style: "short", color: "#15110e" },
+    cyber: ["L"],
+    cyberNeon: "mat_neon_amber",
+    extras: ["belt", "holster", "neck_ring"],
+    neon: "mat_neon_amber",
+  }),
+
+  character("char_player_female", ["player"], {
+    ...FEMALE,
+    skin: "#d9a88a",
+    top: { style: "jacket", sleeves: "long", color: "#d9dce6", collar: "high", trim: "mat_neon_magenta", zip: true, hem: 0.0 },
+    bottom: { kind: "pants", color: "#14161b", baggy: 0.88, cuff: false, stripe: "mat_neon_magenta" },
+    boots: { kind: "boots", color: "#101114", high: true, sole: "#0b0b0d" },
+    gloves: "#23252b",
+    hair: { style: "long", color: "#c0268f" },
+    cyber: ["R"],
+    cyberNeon: "mat_neon_magenta",
+    extras: ["belt", "neck_ring"],
+    neon: "mat_neon_magenta",
+  }),
+
+  character("char_civ_a", ["npc", "civilian"], {
+    ...MALE,
+    height: 1.86,
+    skin: "#e2b497",
+    top: { style: "jacket", sleeves: "long", color: "#8a7f6e", collar: "normal", zip: false, hem: -0.17 },
+    bottom: { kind: "pants", color: "#2b2f3a", baggy: 0.95, cuff: false },
+    boots: { kind: "shoes", color: "#1b1713", high: false, sole: "#0e0e10" },
+    hair: { style: "short", color: "#6b6b6e" },
+    extras: ["tie", "belt"],
+  }),
+
+  character("char_civ_b", ["npc", "civilian"], {
+    ...FEMALE,
+    height: 1.66,
+    skin: "#a8745a",
+    top: { style: "shirt", sleeves: "long", color: "#3f6e6a", collar: "hood", zip: false, hem: -0.1 },
+    bottom: { kind: "pants", color: "#2e4a78", baggy: 1, cuff: false },
+    boots: { kind: "sneakers", color: "#d8dae0", high: false, sole: "#f0f0f0" },
+    hair: { style: "ponytail", color: "#2a1a10" },
+    extras: ["backpack"],
+    extraColor: "#c94b3a",
+  }),
+
+  character("char_civ_c", ["npc", "civilian"], {
+    height: 1.74,
+    shoulder: 0.21,
+    chest: 0.21,
+    waist: 0.195,
+    hip: 0.185,
+    depth: 1.18,
+    limb: 1.1,
+    headScale: 1.03,
+    skin: "#a86f55",
+    top: { style: "shirt", sleeves: "short", color: "#c9b79c", collar: "normal", zip: false, hem: -0.1 },
+    bottom: { kind: "shorts", color: "#4a5a3a", baggy: 1.05, cuff: false },
+    boots: { kind: "sneakers", color: "#9a9ca3", high: false, sole: "#eeeeee" },
+    hair: { style: "bald", color: "#b8b8b8" },
+    face: { beard: true },
+    extras: ["cap"],
+    extraColor: "#8b2b2b",
+  }),
+
+  character("char_gang_a", ["enemy", "gang"], {
+    ...MALE,
+    chest: 0.185,
+    waist: 0.14,
+    limb: 0.93,
+    skin: "#b98466",
+    top: { style: "vest", sleeves: "none", color: "#1e1f25", inner: "#2a2d36", collar: "none", zip: false, hem: null },
+    bottom: { kind: "pants", color: "#33202b", baggy: 1.15, cuff: true, stripe: "mat_neon_green" },
+    boots: { kind: "boots", color: "#121214", high: true, sole: "#0b0b0d" },
+    hair: { style: "mohawk", color: "#1a1612", fin: "mat_neon_cyan" },
+    cyber: ["L", "R"],
+    cyberNeon: "mat_neon_magenta",
+    extras: ["vest", "pad_R", "neck_ring", "holster", "belt"],
+    neon: "mat_neon_green",
+  }),
+
+  character("char_cop_a", ["enemy", "police"], {
+    ...MALE,
+    shoulder: 0.215,
+    chest: 0.205,
+    waist: 0.17,
+    depth: 1.08,
+    skin: "#c08e70",
+    top: { style: "jacket", sleeves: "long", color: "#1c2a44", collar: "normal", zip: false, hem: -0.08 },
+    bottom: { kind: "pants", color: "#161d2e", baggy: 1, cuff: false },
+    boots: { kind: "boots", color: "#101114", high: true, sole: "#0b0b0d" },
+    gloves: "#1a1a1a",
+    hair: { style: "short", color: "#201a14" },
+    extras: ["helmet", "visorglass", "vest", "belt", "holster", "badge", "radio"],
+    extraColor: "#20242c",
+    neon: "mat_neon_cyan",
+  }),
+
+  character("char_corp_guard_a", ["enemy", "corp"], {
+    ...MALE,
+    height: 1.85,
+    shoulder: 0.215,
+    chest: 0.2,
+    skin: "#d5a688",
+    top: { style: "jacket", sleeves: "long", color: "#101114", collar: "normal", zip: false, hem: -0.16 },
+    bottom: { kind: "pants", color: "#101114", baggy: 0.95, cuff: false },
+    boots: { kind: "shoes", color: "#0a0a0b", high: false, sole: "#050505" },
+    gloves: "#0a0a0b",
+    hair: { style: "short", color: "#101010" },
+    face: { visor: "mat_neon_red" },
+    extras: ["tie", "earpiece", "belt"],
+  }),
+
+  character("char_civ_d", ["npc", "civilian"], {
+    height: 1.76,
+    shoulder: 0.2,
+    chest: 0.185,
+    waist: 0.15,
+    limb: 0.95,
+    skin: "#e5bf9f",
+    top: { style: "shirt", sleeves: "long", color: "#b5412f", collar: "hood", zip: false, hem: -0.1 },
+    bottom: { kind: "pants", color: "#3b3f4a", baggy: 1.2, cuff: true },
+    boots: { kind: "sneakers", color: "#e8e8ec", high: false, sole: "#1a1a1d" },
+    hair: { style: "short", color: "#3a2a1c" },
+    extras: ["cap"],
+    extraColor: "#222428",
+  }),
+
+  character("char_civ_e", ["npc", "civilian"], {
+    ...FEMALE,
+    height: 1.64,
+    skin: "#e2b497",
+    top: { style: "jacket", sleeves: "long", color: "#5a4a6a", collar: "normal", zip: false, hem: -0.16 },
+    bottom: { kind: "pants", color: "#26242c", baggy: 0.95, cuff: false },
+    boots: { kind: "shoes", color: "#1b1713", high: false, sole: "#0e0e10" },
+    hair: { style: "long", color: "#b8b8c0" },
+    extras: ["belt"],
+  }),
+
+  character("char_civ_f", ["npc", "civilian"], {
+    ...FEMALE,
+    height: 1.72,
+    skin: "#7c5440",
+    top: { style: "shirt", sleeves: "short", color: "#e8d34a", collar: "normal", zip: false, hem: -0.06, trim: "mat_neon_cyan" },
+    bottom: { kind: "shorts", color: "#2a2d36", baggy: 0.9, cuff: false },
+    boots: { kind: "boots", color: "#16171a", high: true, sole: "#0e0e10" },
+    hair: { style: "bob", color: "#1a1612" },
+    face: { visor: "mat_neon_cyan" },
+    extras: ["neck_ring"],
+    neon: "mat_neon_cyan",
+  }),
+
+  character("char_gang_b", ["enemy", "gang"], {
+    ...FEMALE,
+    height: 1.72,
+    waist: 0.12,
+    skin: "#d9a88a",
+    top: { style: "vest", sleeves: "none", color: "#2a1a2e", inner: "#3a2440", collar: "none", zip: false, hem: null },
+    bottom: { kind: "pants", color: "#1f1a24", baggy: 1.05, cuff: true, stripe: "mat_neon_magenta" },
+    boots: { kind: "boots", color: "#121214", high: true, sole: "#0b0b0d" },
+    hair: { style: "ponytail", color: "#ff2bd6" },
+    cyber: ["R"],
+    cyberNeon: "mat_neon_cyan",
+    extras: ["vest", "pad_L", "pad_R", "neck_ring", "holster", "belt"],
+    neon: "mat_neon_magenta",
+  }),
+
+  character("char_cop_b", ["enemy", "police"], {
+    ...FEMALE,
+    height: 1.74,
+    shoulder: 0.19,
+    chest: 0.178,
+    waist: 0.14,
+    skin: "#a8745a",
+    top: { style: "jacket", sleeves: "long", color: "#1c2a44", collar: "normal", zip: false, hem: -0.06 },
+    bottom: { kind: "pants", color: "#161d2e", baggy: 0.95, cuff: false },
+    boots: { kind: "boots", color: "#101114", high: true, sole: "#0b0b0d" },
+    gloves: "#1a1a1a",
+    hair: { style: "bun", color: "#15110e" },
+    extras: ["cap", "vest", "belt", "holster", "badge", "radio"],
+    extraColor: "#1c2a44",
+    neon: "mat_neon_cyan",
+  }),
+
+  character("char_corp_guard_b", ["enemy", "corp"], {
+    ...FEMALE,
+    height: 1.78,
+    shoulder: 0.19,
+    skin: "#e2b497",
+    top: { style: "jacket", sleeves: "long", color: "#14161a", collar: "normal", zip: false, hem: -0.1 },
+    bottom: { kind: "pants", color: "#14161a", baggy: 0.9, cuff: false },
+    boots: { kind: "shoes", color: "#0a0a0b", high: false, sole: "#050505" },
+    gloves: "#0a0a0b",
+    hair: { style: "bob", color: "#d8d8e0" },
+    face: { visor: "mat_neon_cyan" },
+    extras: ["tie", "earpiece", "belt"],
+  }),
+
+  character("char_corp_exec", ["npc", "corp"], {
+    ...MALE,
+    height: 1.83,
+    skin: "#e2b497",
+    top: { style: "jacket", sleeves: "long", color: "#c9ccd4", collar: "normal", zip: false, hem: -0.13 },
+    bottom: { kind: "pants", color: "#c9ccd4", baggy: 0.95, cuff: false },
+    boots: { kind: "shoes", color: "#1b1713", high: false, sole: "#0e0e10" },
+    hair: { style: "short", color: "#8a8a92" },
+    extras: ["tie", "belt"],
+  }),
+];

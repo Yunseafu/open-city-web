@@ -47,8 +47,9 @@ export class MemoryMonitor {
     }
     let vertBytes = 0;
     for (const mesh of this.scene.meshes) {
-      // Quantised layout: 16-bit position/UV, packed normal (~16 bytes/vertex) plus 4-byte indices.
-      vertBytes += mesh.getTotalVertices() * 16 + mesh.getTotalIndices() * 4;
+      // Packed layout from tools/gen: 16-bit position (8 B), 8-bit normal (4 B), float UV (8 B),
+      // 8-bit colour (4 B) = 24 bytes/vertex, plus 4-byte indices.
+      vertBytes += mesh.getTotalVertices() * 24 + mesh.getTotalIndices() * 4;
     }
     const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
     const jsHeap = perf.memory?.usedJSHeapSize ?? 0;
