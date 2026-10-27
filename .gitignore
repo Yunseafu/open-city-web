@@ -2,3 +2,5 @@ node_modules
 dist
 tools/raw
 public/chunks/*.glb
+public/chunks/*.json
+public/models

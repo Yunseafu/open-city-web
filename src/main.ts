@@ -11,8 +11,8 @@ import { ChunkManager } from "./world/ChunkManager";
 import { BUDGET_MB, MemoryMonitor } from "./util/MemoryMonitor";
 import { TIERS } from "./util/Quality";
 
-// Self-host the decoder in production (copy to /public/decoders) to avoid the CDN default.
-MeshoptCompression.Configuration.decoder.url = "https://cdn.jsdelivr.net/npm/meshoptimizer@0.20.0/meshopt_decoder.js";
+// Self-hosted decoder (public/decoders/meshopt_decoder.js, from the meshoptimizer package).
+MeshoptCompression.Configuration.decoder.url = `${import.meta.env.BASE_URL}decoders/meshopt_decoder.js`;
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const hud = document.getElementById("hud") as HTMLDivElement;

@@ -24,10 +24,13 @@ const args = [
   "-cc",               // meshopt compression, better ratio
   "-tc",               // KTX2 / Basis textures via toktx
   "-vp", "16",         // 16-bit quantised positions
-  "-vt", "16",         // 16-bit quantised UVs
+  "-vtf",              // float UVs (metre-scale UVs; quantised UVs need a texture transform)
   "-vn", "8",          // 8-bit normals
   "-mm",               // merge meshes with the same material (static batching)
   "-kn",               // keep named nodes, so gameplay props can be found
+  "-km",               // keep material names: they are the key into the runtime material library
+  "-ke",               // keep extras (anchors, material hints)
+  "-kv",               // keep UVs / colours even on untextured materials
 ];
 
 const res = spawnSync("gltfpack", args, { stdio: "inherit" });

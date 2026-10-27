@@ -34,7 +34,7 @@ textures 350, geometry 120, lightmaps 80, JS heap 100, plus WASM, audio and misc
 
 ## TODO (next milestones)
 
-- Self-host the meshopt and Basis decoders instead of the CDN
+- Self-host the Basis (KTX2) decoder instead of the CDN (meshopt decoder is already local)
 - M2: player controller, Rapier physics, weapons
 - M3: Node/WebSocket server-authoritative multiplayer
 - M4: data-driven quest and puzzle system
