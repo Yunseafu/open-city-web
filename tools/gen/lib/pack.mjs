@@ -5,6 +5,7 @@
 // cli's process.exit() intermittently aborts Node with a libuv assertion (src\win\async.c), and one
 // Wasm instance for the whole run is also faster than a node process per model.
 import fs from "node:fs";
+import path from "node:path";
 import { pack as gltfpack } from "gltfpack";
 
 const iface = {
@@ -30,10 +31,12 @@ export async function pack(input, output, { simplify = 1, positionBits = 14 } = 
     "-vc", "8",
   ];
   if (simplify < 1) args.push("-si", String(simplify));
-  // The library keeps global state, so calls must not overlap: every caller awaits.
+  let log;
   try {
-    await gltfpack(args, iface);
+    log = await gltfpack(args, iface);
   } catch (err) {
     throw new Error(`gltfpack failed for ${input}\n${err instanceof Error ? err.message : String(err)}`);
   }
+  // Warnings (e.g. quantisation error) used to vanish in the child's stdout.
+  if (log.trim()) console.warn(`gltfpack ${path.basename(input)}: ${log.trim()}`);
 }

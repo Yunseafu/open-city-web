@@ -233,6 +233,30 @@ async function loadChunk(): Promise<{ min: Vector3; max: Vector3 }> {
   return { min, max };
 }
 
+/** Smallest radius at the camera's alpha/beta/fov that keeps all eight corners of the box inside the view. */
+function fitRadius(min: Vector3, max: Vector3, target: Vector3): number {
+  const back = new Vector3(Math.sin(cam.beta) * Math.cos(cam.alpha), Math.cos(cam.beta), Math.sin(cam.beta) * Math.sin(cam.alpha));
+  const fwd = back.negate();
+  const right = Vector3.Cross(Vector3.Up(), fwd);
+  if (right.lengthSquared() < 1e-6) right.copyFrom(Vector3.Right());
+  right.normalize();
+  const up = Vector3.Cross(fwd, right);
+  const tanV = Math.tan(cam.fov / 2);
+  const tanH = tanV * engine.getAspectRatio(cam);
+  let radius = 0;
+  for (const x of [min.x, max.x]) {
+    for (const y of [min.y, max.y]) {
+      for (const z of [min.z, max.z]) {
+        // corner offset v, camera at target - fwd * r: depth = v.fwd + r must cover |v.up| / tanV and |v.right| / tanH
+        const v = new Vector3(x, y, z).subtract(target);
+        const depth = Vector3.Dot(v, fwd);
+        radius = Math.max(radius, Math.abs(Vector3.Dot(v, up)) / tanV - depth, Math.abs(Vector3.Dot(v, right)) / tanH - depth);
+      }
+    }
+  }
+  return radius * 1.05;
+}
+
 const bounds = view === "chunk" ? await loadChunk() : await loadGallery();
 const centre = new Vector3((bounds.min.x + bounds.max.x) / 2, bounds.max.y / 3, (bounds.min.z + bounds.max.z) / 2);
 const size = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z, 4);
@@ -240,7 +264,8 @@ const camParam = q.get("cam")?.split(",").map(Number);
 cam.setTarget(camParam && camParam.length >= 6 ? new Vector3(camParam[3], camParam[4], camParam[5]) : centre);
 cam.alpha = -Math.PI / 2;
 cam.beta = 1.05;
-cam.radius = Math.max(size * 0.9, 3);
+// The gallery backs off until every corner of its bounds is on screen; the chunk view keeps its closer aerial shot.
+cam.radius = view === "chunk" ? Math.max(size * 0.9, 3) : Math.max(fitRadius(bounds.min, bounds.max, cam.getTarget()), 3);
 if (camParam && camParam.length >= 3) {
   cam.alpha = (camParam[0] * Math.PI) / 180;
   cam.beta = (camParam[1] * Math.PI) / 180;
