@@ -86,14 +86,15 @@ if (materials) {
 
 const root = new TransformNode("content", scene);
 
-const labels: { el: HTMLDivElement; at: Vector3 }[] = [];
-function labelPlane(text: string, sub: string, at: Vector3): void {
+const labels: { el: HTMLDivElement; at: Vector3; size: number; shown: boolean }[] = [];
+/** `size` is the model's largest extent in metres: labels of models smaller than ~24 px on screen are hidden. */
+function labelPlane(text: string, sub: string, at: Vector3, size: number): void {
   const el = document.createElement("div");
   el.style.cssText =
-    "position:fixed;transform:translate(-50%,-100%);font:11px/1.3 monospace;color:#7ff;background:rgba(0,0,0,.55);padding:2px 5px;pointer-events:none;white-space:nowrap";
+    "position:fixed;transform:translate(-50%,-100%);font:11px/1.3 monospace;color:#7ff;background:rgba(0,0,0,.55);padding:2px 5px;pointer-events:none;white-space:nowrap;display:none";
   el.textContent = `${text}  ${sub}`;
   document.body.appendChild(el);
-  labels.push({ el, at });
+  labels.push({ el, at, size, shown: false });
 }
 
 /** Checker texture with an "F" and a corner arrow: reads wrong if u/v are mirrored or flipped. */
@@ -146,7 +147,13 @@ async function loadGallery(): Promise<{ min: Vector3; max: Vector3 }> {
   const cat = q.get("cat");
   const ids = q.get("id")?.split(",");
   const models = all.filter((m) => (!cat || m.category === cat) && (!ids || ids.includes(m.id)));
-  const rowWidth = Number(q.get("row") ?? (cat === "building" ? 260 : cat === "vehicle" ? 40 : 40));
+  // Every model at once: rows about as wide as the layout is deep, so the default camera frames them all.
+  const footprint = models.reduce((sum, m) => {
+    const w = m.bounds.max[0] - m.bounds.min[0], d = m.bounds.max[2] - m.bounds.min[2];
+    const gap = Math.max(1.5, Math.max(w, d) * 0.15);
+    return sum + (w + gap) * (d + gap + 2);
+  }, 0);
+  const rowWidth = Number(q.get("row") ?? (cat === "building" ? 260 : cat ? 40 : Math.max(40, Math.sqrt(footprint) * 1.3)));
   let x = 0, z = 0, rowDepth = 0;
   const min = new Vector3(0, 0, 0), max = new Vector3(0, 0, 0);
   let tris = 0;
@@ -173,7 +180,7 @@ async function loadGallery(): Promise<{ min: Vector3; max: Vector3 }> {
     // Place by bounds so the model's min corner sits at (x, z).
     holder.position.set(x - m.bounds.min[0], 0, z - m.bounds.min[2]);
     nodes.push(holder);
-    labelPlane(m.id, `${m.tris} tris`, new Vector3(x + w / 2, m.bounds.max[1] + 0.3, z + d / 2));
+    labelPlane(m.id, `${m.tris} tris`, new Vector3(x + w / 2, m.bounds.max[1] + 0.3, z + d / 2), Math.max(w, d, m.bounds.max[1] - m.bounds.min[1]));
     max.x = Math.max(max.x, x + w);
     max.z = Math.max(max.z, z + d);
     max.y = Math.max(max.y, m.bounds.max[1]);
@@ -243,10 +250,17 @@ if (camParam && camParam.length >= 3) {
 engine.runRenderLoop(() => {
   scene.render();
   const vp = cam.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+  const pxPerRad = innerHeight / (2 * Math.tan(cam.fov / 2));
   for (const l of labels) {
     const p = Vector3.Project(l.at, Matrix.IdentityReadOnly, scene.getTransformMatrix(), vp);
-    const vis = p.z > 0 && p.z < 1;
-    l.el.style.display = vis ? "block" : "none";
+    const px = (l.size / Math.max(0.01, Vector3.Distance(cam.position, l.at))) * pxPerRad;
+    const vis = p.z > 0 && p.z < 1 && px > 24;
+    // Only touch the DOM for visible labels: hundreds of style writes per frame cost more than the models.
+    if (vis !== l.shown) {
+      l.el.style.display = vis ? "block" : "none";
+      l.shown = vis;
+    }
+    if (!vis) continue;
     l.el.style.left = `${(p.x / engine.getRenderWidth()) * innerWidth}px`;
     l.el.style.top = `${(p.y / engine.getRenderHeight()) * innerHeight}px`;
   }
