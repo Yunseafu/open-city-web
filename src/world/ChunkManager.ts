@@ -13,6 +13,21 @@ import type { MaterialLibrary } from "../materials/MaterialLibrary";
 
 export const CHUNK_SIZE = 128;
 
+/** Oriented box collider from the chunk sidecar, chunk-local metres. */
+export interface ChunkCollider {
+  kind: "solid" | "soft" | "platform";
+  c: [number, number, number];
+  h: [number, number, number];
+  rotY: number;
+}
+
+/** `<cx>_<cz>.json` next to the chunk GLB (see docs/models.md). Only the fields the game reads. */
+export interface ChunkSidecar {
+  colliders: ChunkCollider[];
+  anchors: { name: string; pos: [number, number, number]; rotY: number; color?: string; intensity?: number; range?: number }[];
+  spawns: { type: string; pos: [number, number, number]; rotY: number }[];
+}
+
 interface LoadedChunk {
   key: string;
   root: TransformNode;
@@ -33,6 +48,9 @@ export class ChunkManager {
   private centre = "";
   /** Shared PBR materials: chunk GLBs only name them (mat_*), see MaterialLibrary.bindContainer. */
   materials: MaterialLibrary | null = null;
+  /** Fires once a chunk's meshes are in the scene; `sidecar` is null when the chunk has no JSON. */
+  onLoaded: ((key: string, cx: number, cz: number, sidecar: ChunkSidecar | null) => void) | null = null;
+  onUnloaded: ((key: string) => void) | null = null;
 
   constructor(
     private scene: Scene,
@@ -92,8 +110,21 @@ export class ChunkManager {
       this.buildPlaceholder(chunk, x, z);
     }
 
+    let sidecar: ChunkSidecar | null = null;
+    try {
+      const res = await fetch(`${this.baseUrl}/${key}.json`);
+      if (res.ok) sidecar = (await res.json()) as ChunkSidecar;
+    } catch {
+      /* placeholder chunks have no sidecar */
+    }
+
     this.loading.delete(key);
     this.chunks.set(key, chunk);
+    this.onLoaded?.(key, x, z, sidecar);
+  }
+
+  has(key: string): boolean {
+    return this.chunks.has(key);
   }
 
   private buildPlaceholder(chunk: LoadedChunk, x: number, z: number): void {
@@ -146,6 +177,7 @@ export class ChunkManager {
 
   private unload(chunk: LoadedChunk): void {
     this.chunks.delete(chunk.key);
+    this.onUnloaded?.(chunk.key);
     // dispose children (meshes/materials/textures) so GPU memory is released
     if (chunk.container) chunk.container.dispose();
     // Materials and textures are not disposed with the tree: the GLB's own went with the container,

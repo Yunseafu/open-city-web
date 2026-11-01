@@ -12,11 +12,27 @@ browser within a 1GB memory budget.
   quality tier down above 85% of the budget
 - `tools/build-chunk.mjs`: gltfpack wrapper (edge-collapse simplify, meshopt, KTX2)
 
+## Playable slice (M2)
+
+`npm run dev` starts a third-person game on the generated city (Rapier physics, 128 m chunks streamed around you):
+
+| key | action |
+| --- | --- |
+| W A S D / Shift / Space | move / run / jump |
+| mouse, left / right button | aim, shoot / aim down the sights |
+| R, E | reload, interact |
+| Esc | pause |
+
+Mission: (1) knock down 3 shooting-range targets, (2) clear the gang at the crossing, (3) read the terminal's light
+sequence and repeat it on the three colour pylons. Code is in `src/game/` (`Physics`, `Player`, `Enemy`, `Mission`,
+`Hud`, `Sfx`, `Game`); chunk colliders come from the `<x>_<z>.json` sidecars. `?free=1` gives the old free-fly camera,
+`?cam=` (screenshot tool) still works.
+
 ## Run
 
 ```bash
 npm install
-npm run dev     # WASD + mouse look
+npm run dev     # click the screen to play, see the controls above
 npm run build
 ```
 
@@ -54,6 +70,5 @@ textures 350, geometry 120, lightmaps 80, JS heap 100, plus WASM, audio and misc
 
 ## TODO (next milestones)
 
-- M2: player controller, Rapier physics, weapons
 - M3: Node/WebSocket server-authoritative multiplayer
 - M4: data-driven quest and puzzle system
