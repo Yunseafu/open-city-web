@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "@babylonjs/core": "^7.30.0",
-    "@babylonjs/loaders": "^7.30.0"
+    "@babylonjs/loaders": "^7.30.0",
+    "@dimforge/rapier3d-compat": "^0.14.0"
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "^7.54.3",

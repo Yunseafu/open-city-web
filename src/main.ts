@@ -12,6 +12,7 @@ import { configureDecoders } from "./materials/decoders";
 import { createCyberEnvironment, CyberPostFx } from "./materials/CyberEnvironment";
 import { BUDGET_MB, MemoryMonitor } from "./util/MemoryMonitor";
 import { TIERS } from "./util/Quality";
+import { Game } from "./game/Game";
 
 // Meshopt + KTX2 decoders are self-hosted in public/decoders (npm run decoders).
 configureDecoders();
@@ -29,16 +30,23 @@ scene.fogColor = new Color3(0.03, 0.02, 0.08);
 const light = new HemisphericLight("sky", new Vector3(0, 1, 0), scene);
 light.intensity = 0.35;
 
+// ?cam=x,y,z,yawDeg,pitchDeg (screenshot tool) or ?free=1 gives the old free-fly camera and no gameplay.
+const params = new URLSearchParams(location.search);
+const camParam = params.get("cam")?.split(",").map(Number);
+const freeCam = params.has("free") || !!camParam;
+
 // Start on the sidewalk next to the first intersection (matches the player spawn in public/chunks/0_0.json).
-const camera = new UniversalCamera("cam", new Vector3(72.5, 2.0, 36), scene);
-camera.attachControl(canvas, true);
-camera.keysUp = [87];
-camera.keysDown = [83];
-camera.keysLeft = [65];
-camera.keysRight = [68];
-camera.speed = 1.5;
+let camera: UniversalCamera = new UniversalCamera("cam", new Vector3(72.5, 2.0, 36), scene);
 camera.minZ = 0.1;
 camera.maxZ = 1500;
+if (freeCam) {
+  camera.attachControl(canvas, true);
+  camera.keysUp = [87];
+  camera.keysDown = [83];
+  camera.keysLeft = [65];
+  camera.keysRight = [68];
+  camera.speed = 1.5;
+}
 
 createCyberEnvironment(scene);
 const materials = new MaterialLibrary(scene);
@@ -47,6 +55,14 @@ await materials.load();
 let tierIndex = 1;
 const chunks = new ChunkManager(scene);
 chunks.materials = materials;
+
+let game: Game | null = null;
+if (!freeCam) {
+  game = new Game(scene, chunks, materials, canvas);
+  await game.init();
+  camera.dispose();
+  camera = game.camera;
+}
 const postFx = new CyberPostFx(scene, camera, TIERS[tierIndex]);
 const applyTier = () => {
   const tier = TIERS[tierIndex];
@@ -57,11 +73,9 @@ const applyTier = () => {
 };
 applyTier();
 
-// ?cam=x,y,z,yawDeg,pitchDeg places the camera, for tools/preview/shot.mjs.
-const cam = new URLSearchParams(location.search).get("cam")?.split(",").map(Number);
-if (cam?.length === 5 && cam.every(Number.isFinite)) {
-  camera.position.set(cam[0], cam[1], cam[2]);
-  camera.rotation.set((cam[4] * Math.PI) / 180, (cam[3] * Math.PI) / 180, 0);
+if (camParam?.length === 5 && camParam.every(Number.isFinite)) {
+  camera.position.set(camParam[0], camParam[1], camParam[2]);
+  camera.rotation.set((camParam[4] * Math.PI) / 180, (camParam[3] * Math.PI) / 180, 0);
 }
 
 let last = { text: "" };
@@ -84,7 +98,8 @@ const monitor = new MemoryMonitor(scene, (s) => {
 monitor.start();
 
 engine.runRenderLoop(() => {
-  chunks.update(camera.position);
+  if (game) game.update();
+  else chunks.update(camera.position);
   scene.render();
   hud.textContent = `${engine.getFps().toFixed(0)} fps\n${last.text}`;
 });
@@ -103,4 +118,4 @@ const waitReady = async () => {
 void waitReady();
 
 // Dev handle for scripted screenshots and console poking.
-if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { engine, scene, camera, chunks, materials };
+if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { engine, scene, camera, chunks, materials, game };
